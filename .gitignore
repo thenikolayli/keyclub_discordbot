@@ -1,0 +1,6 @@
+.venv
+.idea
+.env
+key.json
+default_names.json
+__pycache__
