@@ -1,21 +1,27 @@
+from discord import Intents, Activity, ActivityType, Embed, Color, Interaction, app_commands
+from discord.ext import commands
+from google.oauth2.service_account import Credentials
+from googleapiclient.discovery import build
+
 from dotenv import load_dotenv
 from os import getenv
 from time import time
-from discord import Intents, Client, Message, Activity, ActivityType, Embed, Color, Interaction, app_commands
-from discord.ext import commands
 from typing import Optional
-from utils import update_hours_list, get_hours, get_year_ranking, find_default_name, write_default_name
+import json
+
+from utils import update_hours_list, get_hours, find_default_name, write_default_name
+
 
 load_dotenv()
 
-TOKEN = getenv("DISCORD_TOKEN")
+token = getenv("DISCORD_TOKEN")
+scopes = json.loads(getenv("SCOPES"))
 
-NAMES_COL = getenv("NAMES_COL")
-NICKNAMES_COL = getenv("NICKNAMES_COL")
-YEAR_COL = getenv("YEAR_COL")
-TERM_HOURS_COL = getenv("TERM_HOURS_COL")
-ALL_HOURS_COL = getenv("ALL_HOURS_COL")
-UPDATE_DELAY = int(getenv("UPDATE_DELAY"))
+update_delay = int(getenv("update_delay"))
+
+names_hours_list = []
+credentials = Credentials.from_service_account_file("key.json", scopes=scopes)
+sheets_service = build("sheets", "v4", credentials=credentials)
 
 intents = Intents.default()
 intents.message_content = True
@@ -24,14 +30,16 @@ last_update = 0
 
 @client.event
 async def on_ready():
+    global names_hours_list, sheets_service
     print(f"Logged in as {client.user}")
     await client.tree.sync()
     await client.change_presence(activity=Activity(type=ActivityType.playing, name="Watching your messages"))
-    await update_hours_list(NAMES_COL, NICKNAMES_COL, YEAR_COL, TERM_HOURS_COL, ALL_HOURS_COL)
+    await update_hours_list(names_hours_list, sheets_service)
 
 @client.tree.command(name="hours", description="Returns the hours of a given name or default name")
 @app_commands.describe(name="Returns the hours of a given name or default name")
 async def hours(interaction: Interaction, name: Optional[str] = None):
+    global names_hours_list
     # checks for default name, asks to set if not found
     if not name:
         if name_found := find_default_name(interaction.user.id):
@@ -45,8 +53,9 @@ async def hours(interaction: Interaction, name: Optional[str] = None):
             # await interaction.response.send_message(embed=embed, ephemeral=True)
             await interaction.response.send_message("https://tenor.com/view/but-none-were-there-spongebob-hawaii-part-ii-gif-1736518424783391175", ephemeral=False)
             return
+
     # retrieves and sends hours info, send error if not found
-    if hours_info := get_hours(name):
+    if hours_info := get_hours(names_hours_list, name):
         embed = Embed(
             title=f"{hours_info['name']}'s Hours",
             description=f"Term Hours: {hours_info['term_hours']}\nAll Hours: {hours_info['all_hours']}",
@@ -82,14 +91,14 @@ async def setname(interaction: Interaction, name: str):
 async def updatehours(interaction: Interaction):
     global last_update
 
-    if time() - last_update <= UPDATE_DELAY:
+    if time() - last_update <= update_delay:
         await interaction.response.send_message(
-            f"Update request is too soon, you must wait {int(UPDATE_DELAY - (time() - last_update))} more seconds to update the bot",
+            f"Update request is too soon, you must wait {int(update_delay - (time() - last_update))} more seconds to update the bot",
             ephemeral=True)
         return
 
     last_update = time()
-    await update_hours_list(NAMES_COL, NICKNAMES_COL, YEAR_COL, TERM_HOURS_COL, ALL_HOURS_COL)
+    await update_hours_list(names_hours_list, sheets_service)
     await interaction.response.send_message(
         f"Hours have been updated, you may update them again in 5 minutes",
         ephemeral=False)
@@ -110,4 +119,4 @@ Here are this bots commands:
     )
     await interaction.response.send_message(embed=embed, ephemeral=True)
 
-client.run(TOKEN)
+client.run(token)

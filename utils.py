@@ -1,44 +1,41 @@
+# collection of utility functions used to automatically log events and meetings and check volunteer hours
+
 from dotenv import load_dotenv
 from os import getenv
-from google.oauth2.service_account import Credentials
-from googleapiclient.discovery import build
-import json, asyncio
+import asyncio, json
 
 load_dotenv()
 
-SPREADSHEET_ID = getenv("SPREADSHEET_ID")
-SCOPES = json.loads(getenv("SCOPES"))
+spreadsheet_id = getenv("SPREADSHEET_ID")
+names_col = getenv("NAMES_COL")
+nicknames_col = getenv("NICKNAMES_COL")
+year_col = getenv("YEAR_COL")
+term_hours_col = getenv("TERM_HOURS_COL")
+all_hours_col = getenv("ALL_HOURS_COL")
+spreadsheet_ranges = [names_col, nicknames_col]
 
-credentials = Credentials.from_service_account_file("key.json", scopes=SCOPES)
-service = build("sheets", "v4", credentials=credentials)
 
-names_hours_list = []
+# ------------------CHECK HOURS API STUFF------------------
+# this is the same as in the website api, it's just independent
 
-def url_to_id(url):
-    try:
-        return url.split("d/")[1].split("/edit")[0]
-    except IndexError:
-        try:
-            return url.split("document_id=")[1]
-        except IndexError:
-            return url
+# updates the hours list by fetching hours from the spreadsheet
+async def update_hours_list(names_hours_list, service):
+    global names_col, nicknames_col, year_col, term_hours_col, all_hours_col, spreadsheet_id
 
-async def update_hours_list(names_col_arg, nicknames_col_arg, year_col_arg, term_hour_col_arg, all_hours_call_arg):
-    global names_hours_list
     names_hours_list.clear()
 
     names_hours_data_request = await asyncio.to_thread(
         service.spreadsheets().values().batchGet,
-        spreadsheetId=SPREADSHEET_ID,
-        ranges=[names_col_arg, nicknames_col_arg, year_col_arg, term_hour_col_arg, all_hours_call_arg]
+        spreadsheetId=spreadsheet_id,
+        ranges=[names_col, nicknames_col, year_col, term_hours_col, all_hours_col]
     )
     names_hours_data = names_hours_data_request.execute()
-
-    names_len = len(names_hours_data["valueRanges"][0]["values"])
     nicknames_len = len(names_hours_data["valueRanges"][1]["values"])
+    loop_range = len(names_hours_data["valueRanges"][2]["values"])
 
-    for i in range(names_len):
+    for i in range(loop_range):
         last, first = names_hours_data["valueRanges"][0]["values"][i][0].split(", ")
+        # print(first, last, i)
 
         full_name = f"{first.lower()} {last.lower()}"
         if i >= nicknames_len or names_hours_data["valueRanges"][1]["values"][i] == []:
@@ -57,9 +54,8 @@ async def update_hours_list(names_col_arg, nicknames_col_arg, year_col_arg, term
             "all_hours": all_hours
         })
 
-def get_hours(name):
-    global names_hours_list
-
+# gets the hours for a person based on their name
+def get_hours(names_hours_list, name):
     if len(names_hours_list) == 0:
         return None
 
@@ -70,21 +66,8 @@ def get_hours(name):
             return value
     return None
 
-def get_year_ranking(year):
-    global names_hours_list
 
-    if len(names_hours_list) == 0:
-        return None
-
-    year = year.lower()
-    year_ranking = [each for each in names_hours_list if each["year"] == year]
-
-    for i in range(len(year_ranking)):
-        for j in range(i + 1, len(year_ranking)):
-            if year_ranking[i]["all_hours"] < year_ranking[j]["all_hours"]:
-                year_ranking[i], year_ranking[j] = year_ranking[j], year_ranking[i]
-
-    return year_ranking[0:5]
+# ------------------DEFAULT NAMES API STUFF------------------
 
 def find_default_name(user_id):
     with open("default_names.json", "r") as file:
