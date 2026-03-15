@@ -1,9 +1,0 @@
-services:
-  keyclub_discordbot:
-    build: .
-    volumes:
-      - ./default_names.json:/app/default_names.json
-      - ./key.json:/app/key.json
-    env_file:
-      - .env
-    user: root

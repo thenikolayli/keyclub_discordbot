@@ -30,3 +30,10 @@ Here are some of the features I'd like to add.
 I will be using Go with DiscordGo.
 
 Database models will be `member`, `event metadata`, and `event signups`. The TTL before refetching upon request for each in order is 60 minutes, 15 minutes, and 15 minutes.
+
+## Utility Functions
+
+- `getTables` - gets tables from a Google Doc
+- `getMetadata` - gets metadata from a table
+- `getSignups` - gets signups from a list of tables
+- `isSignedOut` - checks if event volunteers have been signed out
