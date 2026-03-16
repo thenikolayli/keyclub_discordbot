@@ -5,7 +5,9 @@ import (
 	"keyclubDiscordBot/config"
 	"keyclubDiscordBot/genericutils"
 	"strconv"
+	"time"
 
+	"github.com/jmoiron/sqlx"
 	"google.golang.org/api/sheets/v4"
 )
 
@@ -24,15 +26,53 @@ import (
 // format and turn them all into structs
 
 // updates the member database entries
-func UpdateMembers(googleServices *genericutils.GoogleServices) error {
+// fetches values via an api call to the hours spreadsheet
+// formats the response to member structs
+// updates the database based on structs
+func UpdateMembers(googleServices *genericutils.GoogleServices, db *sqlx.DB) error {
+	prevTime := time.Now()
 	memberValueRanges, err := getMemberValueRanges(googleServices)
 	if err != nil {
 		return fmt.Errorf("Failed to update members: %v", err)
 	}
-	formattedMemberValueRanges := getFormattedMemberValueRanges(memberValueRanges)
+	fmt.Printf("Time for API call: %v\n", time.Since(prevTime))
 
-	fmt.Print(formattedMemberValueRanges)
+	prevTime = time.Now()
+	formattedMemberStructs := getFormattedMemberStructs(memberValueRanges)
+	fmt.Printf("Time to format: %v\n", time.Since(prevTime))
 
+	prevTime = time.Now()
+	// check if it exists first, if yes, update, if no, add it
+	for _, each := range formattedMemberStructs {
+		err := upsertMember(each, db)
+		if err != nil {
+			return err
+		}
+	}
+	fmt.Printf("Time to run DB queries: %v", time.Since(prevTime))
+
+	return nil
+}
+
+// upserts member
+func upsertMember(member Member, db *sqlx.DB) error {
+	_, err := db.NamedExec(`
+		insert into members
+		(name, nickname, term_hours, all_hours, shirt_size, paid_dues, grad_year, strikes)
+		values
+		(:name, :nickname, :term_hours, :all_hours, :shirt_size, :paid_dues, :grad_year, :strikes)
+		on conflict(name) do update set
+		nickname=excluded.nickname, 
+		term_hours=excluded.term_hours, 
+		all_hours=excluded.all_hours, 
+		shirt_size=excluded.shirt_size, 
+		paid_dues=excluded.paid_dues, 
+		grad_year=excluded.grad_year, 
+		strikes=excluded.strikes
+	`, member)
+	if err != nil {
+		return fmt.Errorf("Error upserting %v: %v\n", member.Name, err)
+	}
 	return nil
 }
 
@@ -52,7 +92,8 @@ func getMemberValueRanges(googleServices *genericutils.GoogleServices) ([]*sheet
 	return data.ValueRanges, nil
 }
 
-func getFormattedMemberValueRanges(memberValueRanges []*sheets.ValueRange) []Member {
+// takes the api call value ranges and turns them into an array of member structs
+func getFormattedMemberStructs(memberValueRanges []*sheets.ValueRange) []Member {
 	// gets length based on the length of the names column
 	memberValueRangesLength := len(memberValueRanges[0].Values)
 	formattedMemberArray := make([]Member, memberValueRangesLength)
@@ -65,7 +106,6 @@ func getFormattedMemberValueRanges(memberValueRanges []*sheets.ValueRange) []Mem
 	normalizedStrikes := normalizeIntValues(memberValueRanges[5].Values, memberValueRangesLength)
 
 	for i := range memberValueRangesLength - 1 {
-		fmt.Println(i)
 		formattedMemberArray[i] = Member{
 			Name:      normalizedNames[i],
 			Nickname:  normalizedNicknames[i],

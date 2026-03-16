@@ -8,8 +8,9 @@ import (
 
 func main() {
 	config.LoadConfig()
+	defer config.DB.Close()
 
-	err := hoursutils.UpdateMembers(config.GoogleServices)
+	err := hoursutils.UpdateMembers(config.GoogleServices, config.DB)
 
 	if err != nil {
 		log.Fatalf("Something happened: %v", err)

@@ -12,17 +12,3 @@ type Member struct {
 	GradYear  int     `db:"grad_year"`
 	Strikes   int     `db:"strikes"`
 }
-
-var MemberSchema = `
-CREATE TABLE IF NOT EXISTS members (
-	id INTEGER PRIMARY KEY AUTOINCREMENT,
-	name TEXT NOT NULL,
-	nickname TEXT,
-	term_hours FLOAT NOT NULL,
-	all_hours FLOAT NOT NULL,
-	shirt_size TEXT,
-	paid_dues BOOLEAN,
-	grad_year INTEGER,
-	strikes INTEGER
-)
-`
