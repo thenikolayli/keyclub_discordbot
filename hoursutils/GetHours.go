@@ -1,6 +1,7 @@
 package hoursutils
 
 import (
+	"context"
 	"fmt"
 	"keyclubDiscordBot/config"
 	"keyclubDiscordBot/genericutils"
@@ -11,25 +12,19 @@ import (
 	"google.golang.org/api/sheets/v4"
 )
 
-// when a user requests hours, the program should check if their hours have been
+// takes in a use
+func GetHours(name string) *Hours {
+	// if time.Since(config.HoursLastUpdated).Seconds() > float64(config.HoursTTL) {
 
-// func GetHours(name string) *Hours {
-// 	now := time.Now().Unix()
-
-// 	if lastUpdated < now-config.HoursTTL {
-
-// 	}
-// }
-
-// steps
-// get values from google sheets api
-// format and turn them all into structs
+	// }
+	
+}
 
 // updates the member database entries
 // fetches values via an api call to the hours spreadsheet
 // formats the response to member structs
 // updates the database based on structs
-func UpdateMembers(googleServices *genericutils.GoogleServices, db *sqlx.DB) error {
+func UpdateMembers(googleServices *genericutils.GoogleServices, db *sqlx.DB, ctx context.Context) error {
 	prevTime := time.Now()
 	memberValueRanges, err := getMemberValueRanges(googleServices)
 	if err != nil {
@@ -43,19 +38,24 @@ func UpdateMembers(googleServices *genericutils.GoogleServices, db *sqlx.DB) err
 
 	prevTime = time.Now()
 	// check if it exists first, if yes, update, if no, add it
+	transaction, err := db.BeginTxx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("Failed to create a transaction: %v", err)
+	}
 	for _, each := range formattedMemberStructs {
-		err := upsertMember(each, db)
+		err := upsertMember(each, transaction)
 		if err != nil {
 			return err
 		}
 	}
+	transaction.Commit()
 	fmt.Printf("Time to run DB queries: %v", time.Since(prevTime))
 
 	return nil
 }
 
 // upserts member
-func upsertMember(member Member, db *sqlx.DB) error {
+func upsertMember(member Member, db *sqlx.Tx) error {
 	_, err := db.NamedExec(`
 		insert into members
 		(name, nickname, term_hours, all_hours, shirt_size, paid_dues, grad_year, strikes)

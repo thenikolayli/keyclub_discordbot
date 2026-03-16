@@ -1,3 +1,4 @@
 old
 .env
 google_auth_key.json
+db.sqlite3

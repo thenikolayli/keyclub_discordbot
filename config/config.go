@@ -7,6 +7,7 @@ import (
 	"log"
 	"os"
 	"strconv"
+	"time"
 
 	"github.com/jmoiron/sqlx"
 	"github.com/joho/godotenv"
@@ -27,10 +28,10 @@ var (
 
 	DB *sqlx.DB
 
-	HoursTTL         int64
-	HoursLastUpdated int64 = 0
+	HoursTTL         float64
+	HoursLastUpdated time.Time
 
-	ctx            context.Context
+	Context            context.Context
 	GoogleServices *genericutils.GoogleServices
 )
 
@@ -75,10 +76,10 @@ func LoadConfig() {
 	if err != nil {
 		log.Fatalf("Failed to convert HOURS_TTL to int: %v", err)
 	}
-	HoursTTL = int64(HoursTTLContender)
+	HoursTTL = float64(HoursTTLContender)
 
-	ctx = context.Background()
-	GoogleServicesContender, err := genericutils.GetGoogleServices(ctx, GoogleAuthKeyPath)
+	Context = context.Background()
+	GoogleServicesContender, err := genericutils.GetGoogleServices(Context, GoogleAuthKeyPath)
 	if err != nil {
 		log.Fatalf("Issue getting Google services: %v", err)
 	}
