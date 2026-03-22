@@ -10,15 +10,16 @@ type Member struct {
 	Firstname     string  `db:"first_name"`
 	Lastname      string  `db:"last_name"`
 	Nickname      string  `db:"nickname"`
-	TermHours     float64 `db:"term_hours"`
 	AllHours      float64 `db:"all_hours"`
-	ShirtSize     string  `db:"shirt_size"`
-	PaidDues      bool    `db:"paid_dues"`
+	TermHours     float64 `db:"term_hours"`
 	GradYear      int     `db:"grad_year"`
+	ClassYear     int     `db:"class_year"`
 	Strikes       int     `db:"strikes"`
-	PhoneNumber   string  `db:"phone_number"`
 	PersonalEmail string  `db:"personal_email"`
 	SchoolEmail   string  `db:"school_email"`
+	PhoneNumber   string  `db:"phone_number"`
+	ShirtSize     string  `db:"shirt_size"`
+	PaidDues      bool    `db:"paid_dues"`
 }
 
 // struct to represent what a member sees when they ask for their hours
@@ -32,6 +33,7 @@ type MemberHours struct {
 }
 
 // method to convert a member struct to a member hours struct
+// this is a method function because it's only called on a member struct
 func (member Member) ToMemberHours() MemberHours {
 	return MemberHours{
 		Firstname: member.Firstname,
@@ -51,6 +53,7 @@ type Name struct {
 }
 
 // creates a new instance of type Name based on a string input
+// this is a standalone function because it's often called on a string input, not a member struct
 func NewName(name string) Name {
 	nameParts := strings.Split(name, " ")
 

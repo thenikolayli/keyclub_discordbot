@@ -66,9 +66,9 @@ func upsertMember(member Member, transaction *sqlx.Tx) error {
 	if err == sql.ErrNoRows {
 		_, insertErr := transaction.NamedExec(`
 			INSERT INTO members
-			(first_name, last_name, nickname, term_hours, all_hours, shirt_size, paid_dues, grad_year, strikes)
+			(first_name, last_name, nickname, all_hours, term_hours, grad_year, class_year, strikes, personal_email, school_email, phone_number, shirt_size, paid_dues)
 			VALUES
-			(:first_name, :last_name, :nickname, :term_hours, :all_hours, :shirt_size, :paid_dues, :grad_year, :strikes)`,
+			(:first_name, :last_name, :nickname, :all_hours, :term_hours, :grad_year, :class_year, :strikes, :personal_email, :school_email, :phone_number, :shirt_size, :paid_dues)`,
 			member,
 		)
 		if insertErr != nil {
@@ -80,7 +80,7 @@ func upsertMember(member Member, transaction *sqlx.Tx) error {
 		member.ID = result.ID // to update the correct row based on primary key (id)
 		_, updateErr := transaction.NamedExec(`
 			UPDATE members SET 
-			first_name=:first_name, last_name=:last_name, nickname=:nickname, term_hours=:term_hours, all_hours=:all_hours, shirt_size=:shirt_size, paid_dues=:paid_dues, grad_year=:grad_year, strikes=:strikes
+			first_name=:first_name, last_name=:last_name, nickname=:nickname, all_hours=:all_hours, term_hours=:term_hours, grad_year=:grad_year, class_year=:class_year, strikes=:strikes, personal_email=:personal_email, school_email=:school_email, phone_number=:phone_number, shirt_size=:shirt_size, paid_dues=:paid_dues
 			WHERE id=:id
 		`, member)
 		if updateErr != nil {
@@ -95,10 +95,16 @@ func getMemberValueRanges(sheetsService *sheets.Service) ([]*sheets.ValueRange, 
 	data, err := sheetsService.Spreadsheets.Values.BatchGet(config.SpreadsheetID).Ranges(
 		config.NamesRange,
 		config.NicknamesRange,
-		config.TermHoursRange,
 		config.AllHoursRange,
+		config.TermHoursRange,
 		config.GradYearRange,
+		config.ClassYearRange,
 		config.StrikesRange,
+		config.PersonalEmailRange,
+		config.SchoolEmailRange,
+		config.PhoneNumberRange,
+		config.ShirtSizesRange,
+		config.PaidDuesRange,
 	).Do()
 	if err != nil {
 		return nil, fmt.Errorf("Failed to batch get spreadsheet ranges: %v", err)
@@ -114,10 +120,17 @@ func getFormattedMemberStructs(memberValueRanges []*sheets.ValueRange) []Member 
 
 	normalizedNames := normalizeStringValues(memberValueRanges[0].Values, memberValueRangesLength)
 	normalizedNicknames := normalizeStringValues(memberValueRanges[1].Values, memberValueRangesLength)
-	normalizedTermHours := normalizeFloatValues(memberValueRanges[2].Values, memberValueRangesLength)
-	normalizedAllHours := normalizeFloatValues(memberValueRanges[3].Values, memberValueRangesLength)
+	normalizedAllHours := normalizeFloatValues(memberValueRanges[2].Values, memberValueRangesLength)
+	normalizedTermHours := normalizeFloatValues(memberValueRanges[3].Values, memberValueRangesLength)
 	normalizedGradYears := normalizeIntValues(memberValueRanges[4].Values, memberValueRangesLength)
-	normalizedStrikes := normalizeIntValues(memberValueRanges[5].Values, memberValueRangesLength)
+	normalizedClassYears := normalizeIntValues(memberValueRanges[5].Values, memberValueRangesLength)
+	normalizedStrikes := normalizeIntValues(memberValueRanges[6].Values, memberValueRangesLength)
+	normalizedPersonalEmails := normalizeStringValues(memberValueRanges[7].Values, memberValueRangesLength)
+	normalizedSchoolEmails := normalizeStringValues(memberValueRanges[8].Values, memberValueRangesLength)
+	normalizedPhoneNumbers := normalizeStringValues(memberValueRanges[9].Values, memberValueRangesLength)
+	normalizedShirtSizes := normalizeStringValues(memberValueRanges[10].Values, memberValueRangesLength)
+	normalizedPaidDues := normalizeBoolValues(memberValueRanges[11].Values, memberValueRangesLength)
+	
 
 	for i := range memberValueRangesLength - 1 {
 		name := strings.Split(normalizedNames[i], ",") // names are stored as Last, First in the spreadsheet
@@ -126,12 +139,16 @@ func getFormattedMemberStructs(memberValueRanges []*sheets.ValueRange) []Member 
 			Firstname: strings.ToLower(strings.TrimSpace(name[1])),
 			Lastname:  strings.ToLower(strings.TrimSpace(name[0])),
 			Nickname:  strings.ToLower(normalizedNicknames[i]),
-			TermHours: normalizedTermHours[i],
 			AllHours:  normalizedAllHours[i],
+			TermHours: normalizedTermHours[i],
 			GradYear:  normalizedGradYears[i],
+			ClassYear: normalizedClassYears[i],
+			PersonalEmail: normalizedPersonalEmails[i],
+			SchoolEmail:   normalizedSchoolEmails[i],
+			PhoneNumber:   normalizedPhoneNumbers[i],
 			Strikes:   normalizedStrikes[i],
-			ShirtSize: "",
-			PaidDues:  false,
+			ShirtSize: normalizedShirtSizes[i],
+			PaidDues:  normalizedPaidDues[i],
 			ID:        -1,
 		}
 	}
@@ -175,6 +192,21 @@ func normalizeIntValues(values [][]any, length int) []int {
 			value, err := strconv.ParseInt(values[i][0].(string), 0, 64)
 			if err == nil {
 				normalizedStringValues[i] = int(value)
+			}
+		}
+	}
+
+	return normalizedStringValues
+}
+
+func normalizeBoolValues(values [][]any, length int) []bool {
+	normalizedStringValues := make([]bool, length)
+
+	for i := range values {
+		if len(values[i]) != 0 { // if the cell isn't blank
+			value, err := strconv.ParseBool(values[i][0].(string))
+			if err == nil {
+				normalizedStringValues[i] = bool(value)
 			}
 		}
 	}

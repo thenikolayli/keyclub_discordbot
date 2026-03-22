@@ -3,6 +3,7 @@ package memberutils
 import (
 	"fmt"
 	"keyclubDiscordBot/config"
+	"slices"
 	"time"
 
 	"github.com/jmoiron/sqlx"
@@ -26,13 +27,17 @@ func GetAllRanks(gradYear int, topN int, hoursUpdateTimeout float64, hoursLastUp
 	if err != nil {
 		return []Member{}, fmt.Errorf("Failed to get ranks: %v", err)
 	}
-	// topNRanks := []Member{}
-	// currentIndex := 0
-	// for len(topNRanks) < topN {
-	// 	if ranks[currentIndex].Firstname
-	// }
+	// removes officers
+	topNRanks := []Member{}
+	currentIndex := 0
+	for len(topNRanks) < topN { // while topNRanks doesn't have topN ranks
+		if !slices.Contains(config.Officers, fmt.Sprintf("%v %v", ranks[currentIndex].Firstname, ranks[currentIndex].Lastname)) {
+			topNRanks = append(topNRanks, ranks[currentIndex])
+		}
+		currentIndex++
+	}
 
-	return ranks, nil
+	return topNRanks, nil
 }
 
 // returns ranks based on hours for a given grad year, sorted from highest to lowest
@@ -52,5 +57,15 @@ func GetTermRanks(gradYear int, topN int, hoursUpdateTimeout float64, hoursLastU
 	if err != nil {
 		return []Member{}, fmt.Errorf("Failed to get ranks: %v", err)
 	}
-	return ranks, nil
+	// removes officers
+	topNRanks := []Member{}
+	currentIndex := 0
+	for len(topNRanks) < topN { // while topNRanks doesn't have topN ranks
+		if !slices.Contains(config.Officers, fmt.Sprintf("%v %v", ranks[currentIndex].Firstname, ranks[currentIndex].Lastname)) {
+			topNRanks = append(topNRanks, ranks[currentIndex])
+		}
+		currentIndex++
+	}
+
+	return topNRanks, nil
 }
