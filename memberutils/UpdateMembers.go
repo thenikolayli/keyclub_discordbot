@@ -1,32 +1,29 @@
-package hoursutils
+package memberutils
 
 import (
-	"context"
+	"database/sql"
 	"fmt"
 	"keyclubDiscordBot/config"
-	"keyclubDiscordBot/genericutils"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/jmoiron/sqlx"
 	"google.golang.org/api/sheets/v4"
 )
 
-// takes in a use
-func GetHours(name string) *Hours {
-	// if time.Since(config.HoursLastUpdated).Seconds() > float64(config.HoursTTL) {
-
-	// }
-	
-}
-
 // updates the member database entries
 // fetches values via an api call to the hours spreadsheet
 // formats the response to member structs
 // updates the database based on structs
-func UpdateMembers(googleServices *genericutils.GoogleServices, db *sqlx.DB, ctx context.Context) error {
+func UpdateMembers(hoursUpdateTimeout float64, hoursLastUpdated *time.Time, sheetsService *sheets.Service, database *sqlx.DB) error {
+	timeSince := time.Since(*hoursLastUpdated).Seconds()
+	if timeSince < hoursUpdateTimeout {
+		return fmt.Errorf("Not enough time has passed since the last update, wait %v more seconds.", hoursUpdateTimeout-timeSince)
+	}
+
 	prevTime := time.Now()
-	memberValueRanges, err := getMemberValueRanges(googleServices)
+	memberValueRanges, err := getMemberValueRanges(sheetsService)
 	if err != nil {
 		return fmt.Errorf("Failed to update members: %v", err)
 	}
@@ -36,9 +33,9 @@ func UpdateMembers(googleServices *genericutils.GoogleServices, db *sqlx.DB, ctx
 	formattedMemberStructs := getFormattedMemberStructs(memberValueRanges)
 	fmt.Printf("Time to format: %v\n", time.Since(prevTime))
 
-	prevTime = time.Now()
 	// check if it exists first, if yes, update, if no, add it
-	transaction, err := db.BeginTxx(ctx, nil)
+	prevTime = time.Now()
+	transaction, err := database.BeginTxx(config.Context, nil)
 	if err != nil {
 		return fmt.Errorf("Failed to create a transaction: %v", err)
 	}
@@ -49,36 +46,53 @@ func UpdateMembers(googleServices *genericutils.GoogleServices, db *sqlx.DB, ctx
 		}
 	}
 	transaction.Commit()
-	fmt.Printf("Time to run DB queries: %v", time.Since(prevTime))
+	fmt.Printf("Time to run DB queries: %v\n", time.Since(prevTime))
 
+	*hoursLastUpdated = time.Now()
 	return nil
 }
 
-// upserts member
-func upsertMember(member Member, db *sqlx.Tx) error {
-	_, err := db.NamedExec(`
-		insert into members
-		(name, nickname, term_hours, all_hours, shirt_size, paid_dues, grad_year, strikes)
-		values
-		(:name, :nickname, :term_hours, :all_hours, :shirt_size, :paid_dues, :grad_year, :strikes)
-		on conflict(name) do update set
-		nickname=excluded.nickname, 
-		term_hours=excluded.term_hours, 
-		all_hours=excluded.all_hours, 
-		shirt_size=excluded.shirt_size, 
-		paid_dues=excluded.paid_dues, 
-		grad_year=excluded.grad_year, 
-		strikes=excluded.strikes
-	`, member)
-	if err != nil {
-		return fmt.Errorf("Error upserting %v: %v\n", member.Name, err)
+// takes in a formatted member struct and a transaction and upserts their row
+// checks if a member with the same name exists
+// if they don't, insert them
+// otherwise, update
+func upsertMember(member Member, transaction *sqlx.Tx) error {
+	result := Member{}
+	err := transaction.GetContext(
+		config.Context, &result,
+		"SELECT * from members WHERE first_name = ? AND last_name = ? LIMIT 1",
+		member.Firstname, member.Lastname,
+	)
+	if err == sql.ErrNoRows {
+		_, insertErr := transaction.NamedExec(`
+			INSERT INTO members
+			(first_name, last_name, nickname, term_hours, all_hours, shirt_size, paid_dues, grad_year, strikes)
+			VALUES
+			(:first_name, :last_name, :nickname, :term_hours, :all_hours, :shirt_size, :paid_dues, :grad_year, :strikes)`,
+			member,
+		)
+		if insertErr != nil {
+			return fmt.Errorf("Issue inserting member during upsert: %v", insertErr)
+		}
+	} else if err != nil {
+		return fmt.Errorf("Issue upserting member: %v", err)
+	} else {
+		member.ID = result.ID // to update the correct row based on primary key (id)
+		_, updateErr := transaction.NamedExec(`
+			UPDATE members SET 
+			first_name=:first_name, last_name=:last_name, nickname=:nickname, term_hours=:term_hours, all_hours=:all_hours, shirt_size=:shirt_size, paid_dues=:paid_dues, grad_year=:grad_year, strikes=:strikes
+			WHERE id=:id
+		`, member)
+		if updateErr != nil {
+			return fmt.Errorf("Issue updating member during upsert: %v", updateErr)
+		}
 	}
 	return nil
 }
 
 // fetches and returns google sheets api value ranges (unformatted)
-func getMemberValueRanges(googleServices *genericutils.GoogleServices) ([]*sheets.ValueRange, error) {
-	data, err := googleServices.Sheets.Spreadsheets.Values.BatchGet(config.SpreadsheetID).Ranges(
+func getMemberValueRanges(sheetsService *sheets.Service) ([]*sheets.ValueRange, error) {
+	data, err := sheetsService.Spreadsheets.Values.BatchGet(config.SpreadsheetID).Ranges(
 		config.NamesRange,
 		config.NicknamesRange,
 		config.TermHoursRange,
@@ -106,9 +120,12 @@ func getFormattedMemberStructs(memberValueRanges []*sheets.ValueRange) []Member 
 	normalizedStrikes := normalizeIntValues(memberValueRanges[5].Values, memberValueRangesLength)
 
 	for i := range memberValueRangesLength - 1 {
+		name := strings.Split(normalizedNames[i], ",") // names are stored as Last, First in the spreadsheet
+
 		formattedMemberArray[i] = Member{
-			Name:      normalizedNames[i],
-			Nickname:  normalizedNicknames[i],
+			Firstname: strings.ToLower(strings.TrimSpace(name[1])),
+			Lastname:  strings.ToLower(strings.TrimSpace(name[0])),
+			Nickname:  strings.ToLower(normalizedNicknames[i]),
 			TermHours: normalizedTermHours[i],
 			AllHours:  normalizedAllHours[i],
 			GradYear:  normalizedGradYears[i],
