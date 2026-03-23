@@ -1,0 +1,65 @@
+package memberutils
+
+import (
+	"fmt"
+	"keyclubDiscordBot/config"
+	"slices"
+	"time"
+
+	"github.com/jmoiron/sqlx"
+	"google.golang.org/api/sheets/v4"
+)
+
+// returns ranks based on hours for a given grad year, sorted from highest to lowest
+func GetAllRanks(gradYear int, topN int, hoursUpdateTimeout float64, hoursLastUpdated *time.Time, sheetsService *sheets.Service, database *sqlx.DB) ([]Member, error) {
+	// attempts to update members if enough time has passed since the last update
+	UpdateMembers(hoursUpdateTimeout, hoursLastUpdated, sheetsService, database)
+
+	ranks := []Member{}
+	err := database.SelectContext(
+		config.Context, &ranks,
+		"select * from members where grad_year = ? order by all_hours desc",
+		gradYear,
+	)
+	if err != nil {
+		return []Member{}, fmt.Errorf("Failed to get ranks: %v", err)
+	}
+	// removes officers
+	topNRanks := []Member{}
+	currentIndex := 0
+	for len(topNRanks) < topN { // while topNRanks doesn't have topN ranks
+		if !slices.Contains(config.Officers, fmt.Sprintf("%v %v", ranks[currentIndex].Firstname, ranks[currentIndex].Lastname)) {
+			topNRanks = append(topNRanks, ranks[currentIndex])
+		}
+		currentIndex++
+	}
+
+	return topNRanks, nil
+}
+
+// returns ranks based on hours for a given grad year, sorted from highest to lowest
+func GetTermRanks(gradYear int, topN int, hoursUpdateTimeout float64, hoursLastUpdated *time.Time, sheetsService *sheets.Service, database *sqlx.DB) ([]Member, error) {
+	// attempts to update members if enough time has passed since the last update
+	UpdateMembers(hoursUpdateTimeout, hoursLastUpdated, sheetsService, database)
+
+	ranks := []Member{}
+	err := database.SelectContext(
+		config.Context, &ranks,
+		"select * from members where grad_year = ? order by term_hours desc",
+		gradYear,
+	)
+	if err != nil {
+		return []Member{}, fmt.Errorf("Failed to get ranks: %v", err)
+	}
+	// removes officers
+	topNRanks := []Member{}
+	currentIndex := 0
+	for len(topNRanks) < topN { // while topNRanks doesn't have topN ranks
+		if !slices.Contains(config.Officers, fmt.Sprintf("%v %v", ranks[currentIndex].Firstname, ranks[currentIndex].Lastname)) {
+			topNRanks = append(topNRanks, ranks[currentIndex])
+		}
+		currentIndex++
+	}
+
+	return topNRanks, nil
+}

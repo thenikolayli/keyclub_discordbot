@@ -22,18 +22,21 @@ var (
 	SpreadsheetID     string
 	GoogleAuthKeyPath string
 
-	NamesRange     string
-	NicknamesRange string
-	AllHoursRange  string
-	TermHoursRange string
-	GradYearRange  string
-	StrikesRange   string
-	ClassYearRange string
-	PersonalEmailRange string
-	SchoolEmailRange   string
-	PhoneNumberRange   string
-	ShirtSizesRange    string
-	PaidDuesRange      string
+	NamesRange         string = "2025-2026 Member Info!A2:A"
+	NicknamesRange     string = "2025-2026 Member Info!B2:B"
+	AllHoursRange      string = "2025-2026 Member Info!C2:C"
+	TermHoursRange     string = "2025-2026 Member Info!D2:D"
+	GradYearRange      string = "2025-2026 Member Info!E2:E"
+	StrikesRange       string = "2025-2026 Member Info!G2:G"
+	ClassYearRange     string = "2025-2026 Member Info!F2:F"
+	PersonalEmailRange string = "2025-2026 Member Info!H2:H"
+	SchoolEmailRange   string = "2025-2026 Member Info!I2:I"
+	PhoneNumberRange   string = "2025-2026 Member Info!J2:J"
+	ShirtSizesRange    string = "2025-2026 Member Info!K2:K"
+	PaidDuesRange      string = "2025-2026 Member Info!L2:L"
+
+	LeaderRoleId  string
+	OfficerRoleId string
 
 	Officers []string
 
@@ -44,6 +47,8 @@ var (
 
 	Context        context.Context
 	GoogleServices *genericutils.GoogleServices
+	DiscordToken   string
+	GuildID        string
 )
 
 func LoadConfig() {
@@ -51,27 +56,18 @@ func LoadConfig() {
 		log.Fatalf("Failed to load .env: %v", err)
 	}
 
+	SpreadsheetID = os.Getenv("HOURS_SPREADSHEET_ID")
+	GoogleAuthKeyPath = os.Getenv("GOOGLE_AUTH_KEY_PATH")
+	DiscordToken = os.Getenv("DISCORD_TOKEN")
+	GuildID = os.Getenv("GUILD_ID")
+
+	LeaderRoleId = os.Getenv("LEADER_ROLE_ID")
+	OfficerRoleId = os.Getenv("OFFICER_ROLE_ID")
+
 	err := prepDatabase()
 	if err != nil {
 		log.Fatalf("Failed to prepare database: %v", err)
 	}
-
-	SpreadsheetID = os.Getenv("HOURS_SPREADSHEET_ID")
-	GoogleAuthKeyPath = os.Getenv("GOOGLE_AUTH_KEY_PATH")
-
-	NamesRange = os.Getenv("NAMES_RANGE")
-	NicknamesRange = os.Getenv("NICKNAMES_RANGE")
-	AllHoursRange = os.Getenv("ALL_HOURS_RANGE")
-	TermHoursRange = os.Getenv("TERM_HOURS_RANGE")
-	GradYearRange = os.Getenv("GRAD_YEAR_RANGE")
-	ClassYearRange = os.Getenv("CLASS_YEAR_RANGE")
-	StrikesRange = os.Getenv("STRIKES_RANGE")
-	PersonalEmailRange = os.Getenv("PERSONAL_EMAIL_RANGE")
-	SchoolEmailRange = os.Getenv("SCHOOL_EMAIL_RANGE")
-	PhoneNumberRange = os.Getenv("PHONE_NUMBER_RANGE")
-	ShirtSizesRange = os.Getenv("SHIRT_SIZES_RANGE")
-	PaidDuesRange = os.Getenv("PAID_DUES_RANGE")
-
 
 	HoursTTLContender, err := strconv.Atoi(os.Getenv("HOURS_TTL"))
 	if err != nil {
@@ -88,7 +84,7 @@ func LoadConfig() {
 	GoogleServices = GoogleServicesContender
 
 	if rawOfficers := os.Getenv("OFFICERS"); rawOfficers != "" {
-		Officers = strings.Split(rawOfficers, ",")
+		Officers = strings.Split(rawOfficers, ", ")
 	}
 }
 
