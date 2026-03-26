@@ -22,8 +22,8 @@ func New(token, guildID string) (*Bot, error) {
 
 func (bot *Bot) Start() error {
 	bot.Session.AddHandler(Router)
-	bot.Session.AddHandler(func(s *discordgo.Session, r *discordgo.Ready) {
-		log.Printf("Logged in as %s", s.State.User.Username)
+	bot.Session.AddHandler(func(session *discordgo.Session, ready *discordgo.Ready) {
+		log.Printf("Logged in as %s", session.State.User.Username)
 	})
 
 	if err := bot.Session.Open(); err != nil {

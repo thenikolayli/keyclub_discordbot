@@ -14,16 +14,14 @@ Here are some of the features I'd like to add.
 - `/search` - [ ]
   - `start`, `end`, `slots open`, `leader slots`, `member slots`
   - Takes the values above and finds an event that matches every condition.
-- `/refresh`
+- `/refresh` - [ ] MAYBE LATER... low priority.
   - Refreshes the cache
 - `/termRanks`
   - `gradYear int`
   - Returns ranks based on term hours
-  - _NOTE TO SELF_: make it exclude officers
 - `/allRanks`
   - `gradYear int`
   - Returns ranks based on all time hours
-  - _NOTE TO SELF_: make it exclude officers
 
 ## _Leader Functions_
 
@@ -46,16 +44,3 @@ Here are some of the features I'd like to add.
   - Returns `monthInfo MonthInfo`
   - The `MonthInfo` struct has the fields `Events []Event`, `NofEvents int`, `TotalHours float64`
   - The `Event` struct has the fields `Date (date)`, `StartTime`, `EndTime`, `Address`, `Leaders`, `NofVolunteers`
-
-## Architecture
-
-I will be using Go with DiscordGo.
-
-Database models will be `member`, `event metadata`, and `event signups`. The TTL before refetching upon request for each in order is 60 minutes, 15 minutes, and 15 minutes.
-
-## FAQ
-
-## Relationships
-
-- member to roles (many to many)
-- member to committees (many to many)

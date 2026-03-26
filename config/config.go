@@ -6,7 +6,6 @@ import (
 	"keyclubDiscordBot/genericutils"
 	"log"
 	"os"
-	"strconv"
 	"strings"
 	"time"
 
@@ -22,18 +21,18 @@ var (
 	SpreadsheetID     string
 	GoogleAuthKeyPath string
 
-	NamesRange         string = "2025-2026 Member Info!A2:A"
-	NicknamesRange     string = "2025-2026 Member Info!B2:B"
-	AllHoursRange      string = "2025-2026 Member Info!C2:C"
-	TermHoursRange     string = "2025-2026 Member Info!D2:D"
-	GradYearRange      string = "2025-2026 Member Info!E2:E"
-	StrikesRange       string = "2025-2026 Member Info!G2:G"
-	ClassYearRange     string = "2025-2026 Member Info!F2:F"
-	PersonalEmailRange string = "2025-2026 Member Info!H2:H"
-	SchoolEmailRange   string = "2025-2026 Member Info!I2:I"
-	PhoneNumberRange   string = "2025-2026 Member Info!J2:J"
-	ShirtSizesRange    string = "2025-2026 Member Info!K2:K"
-	PaidDuesRange      string = "2025-2026 Member Info!L2:L"
+	NamesRange         string = "2025-2026 Members!A2:A"
+	NicknamesRange     string = "2025-2026 Members!B2:B"
+	AllHoursRange      string = "2025-2026 Members!C2:C"
+	TermHoursRange     string = "2025-2026 Members!D2:D"
+	GradYearRange      string = "2025-2026 Members!E2:E"
+	ClassRange         string = "2025-2026 Members!F2:F"
+	StrikesRange       string = "2025-2026 Members!G2:G"
+	PersonalEmailRange string = "2025-2026 Members!H2:H"
+	SchoolEmailRange   string = "2025-2026 Members!I2:I"
+	PhoneNumberRange   string = "2025-2026 Members!J2:J"
+	ShirtSizesRange    string = "2025-2026 Members!K2:K"
+	PaidDuesRange      string = "2025-2026 Members!L2:L"
 
 	LeaderRoleId  string
 	OfficerRoleId string
@@ -42,8 +41,10 @@ var (
 
 	DB *sqlx.DB
 
-	HoursUpdateTimeout float64
+	HoursUpdateTimeout float64 = 3600
 	HoursLastUpdated   time.Time
+
+	DefaultRankTopN int = 5
 
 	Context        context.Context
 	GoogleServices *genericutils.GoogleServices
@@ -69,11 +70,6 @@ func LoadConfig() {
 		log.Fatalf("Failed to prepare database: %v", err)
 	}
 
-	HoursTTLContender, err := strconv.Atoi(os.Getenv("HOURS_TTL"))
-	if err != nil {
-		log.Fatalf("Failed to convert HOURS_TTL to int: %v", err)
-	}
-	HoursUpdateTimeout = float64(HoursTTLContender)
 	HoursLastUpdated = time.Now()
 
 	Context = context.Background()

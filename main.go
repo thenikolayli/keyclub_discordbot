@@ -3,6 +3,7 @@ package main
 import (
 	"keyclubDiscordBot/bot"
 	"keyclubDiscordBot/config"
+	"keyclubDiscordBot/memberutils"
 	"log"
 	"os"
 	"os/signal"
@@ -18,6 +19,7 @@ func main() {
 	// 	log.Fatalf("Something happened: %v", err)
 	// }
 	// log.Printf("Member: %+v", member)
+	memberutils.UpdateMembers(config.HoursUpdateTimeout, &config.HoursLastUpdated, config.GoogleServices.Sheets, config.DB)
 
 	bot, err := bot.New(config.DiscordToken, config.GuildID)
 	if err != nil {

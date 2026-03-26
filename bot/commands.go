@@ -10,18 +10,24 @@ import (
 
 var Commands = []*discordgo.ApplicationCommand{
 	commands.HoursCommand,
+	commands.MemberLookupCommand,
+	commands.AllRanksCommand,
+	commands.TermRanksCommand,
 }
 
+// passes a function to get role Ids so they are updated when the function is called so they're not empty upon package initialization
 var CommandHandlers = map[string]func(*discordgo.Session, *discordgo.InteractionCreate){
-	"hours":  commands.HoursHandler,
-	"member": requireRole([]string{config.OfficerRoleId, config.LeaderRoleId}, commands.MemberLookupHandler),
+	"hours":     commands.HoursHandler,
+	"member":    requireRole(func() []string { return []string{config.OfficerRoleId, config.LeaderRoleId} }, commands.MemberLookupHandler),
+	"allranks":  commands.AllRanksHandler,
+	"termranks": commands.TermRanksHandler,
 }
 
 // checks if a member has a certain role
 // loops through every role a member has and checks if they have the role with the given id
-func hasRole(member *discordgo.Member, roleIds []string) bool {
-	for _, role := range member.Roles {
-		if slices.Contains(roleIds, role) {
+func hasRole(member *discordgo.Member, requiredRoles []string) bool {
+	for _, requiredRole := range requiredRoles {
+		if slices.Contains(member.Roles, requiredRole) {
 			return true
 		}
 	}
@@ -30,9 +36,10 @@ func hasRole(member *discordgo.Member, roleIds []string) bool {
 
 // requires a user to have a certain role otherwise it will respond with an error message and not execute the command
 // wrapper function that returns a command handler if the user has the required role, otherwise responds with an error message
-func requireRole(roleIds []string, next func(*discordgo.Session, *discordgo.InteractionCreate)) func(*discordgo.Session, *discordgo.InteractionCreate) {
+func requireRole(getRequiredRoles func() []string, next func(*discordgo.Session, *discordgo.InteractionCreate)) func(*discordgo.Session, *discordgo.InteractionCreate) {
 	return func(session *discordgo.Session, interaction *discordgo.InteractionCreate) {
-		if interaction.Member == nil || !hasRole(interaction.Member, roleIds) {
+		requiredRoles := getRequiredRoles()
+		if interaction.Member == nil || !hasRole(interaction.Member, requiredRoles) {
 			session.InteractionRespond(interaction.Interaction, &discordgo.InteractionResponse{
 				Type: discordgo.InteractionResponseChannelMessageWithSource,
 				Data: &discordgo.InteractionResponseData{

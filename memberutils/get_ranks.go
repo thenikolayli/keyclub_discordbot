@@ -26,12 +26,20 @@ func GetAllRanks(gradYear int, topN int, hoursUpdateTimeout float64, hoursLastUp
 	}
 	// removes officers
 	topNRanks := []Member{}
-	currentIndex := 0
-	for len(topNRanks) < topN { // while topNRanks doesn't have topN ranks
-		if !slices.Contains(config.Officers, fmt.Sprintf("%v %v", ranks[currentIndex].Firstname, ranks[currentIndex].Lastname)) {
-			topNRanks = append(topNRanks, ranks[currentIndex])
+	if topN != -1 {
+		currentIndex := 0
+		for len(topNRanks) < topN { // while topNRanks doesn't have topN ranks
+			if !slices.Contains(config.Officers, fmt.Sprintf("%v %v", ranks[currentIndex].Firstname, ranks[currentIndex].Lastname)) {
+				topNRanks = append(topNRanks, ranks[currentIndex])
+			}
+			currentIndex++
 		}
-		currentIndex++
+	} else {
+		for _, rank := range ranks {
+			if !slices.Contains(config.Officers, fmt.Sprintf("%v, %v", rank.Firstname, rank.Lastname)) {
+				topNRanks = append(topNRanks, rank)
+			}
+		}
 	}
 
 	return topNRanks, nil
@@ -53,12 +61,20 @@ func GetTermRanks(gradYear int, topN int, hoursUpdateTimeout float64, hoursLastU
 	}
 	// removes officers
 	topNRanks := []Member{}
-	currentIndex := 0
-	for len(topNRanks) < topN { // while topNRanks doesn't have topN ranks
-		if !slices.Contains(config.Officers, fmt.Sprintf("%v %v", ranks[currentIndex].Firstname, ranks[currentIndex].Lastname)) {
-			topNRanks = append(topNRanks, ranks[currentIndex])
+	if topN != -1 {
+		currentIndex := 0
+		for len(topNRanks) < topN { // while topNRanks doesn't have topN ranks
+			if !slices.Contains(config.Officers, fmt.Sprintf("%v %v", ranks[currentIndex].Firstname, ranks[currentIndex].Lastname)) {
+				topNRanks = append(topNRanks, ranks[currentIndex])
+			}
+			currentIndex++
 		}
-		currentIndex++
+	} else {
+		for _, rank := range ranks {
+			if !slices.Contains(config.Officers, fmt.Sprintf("%v, %v", rank.Firstname, rank.Lastname)) {
+				topNRanks = append(topNRanks, rank)
+			}
+		}
 	}
 
 	return topNRanks, nil

@@ -18,15 +18,30 @@ func GetMember(name string, hoursUpdateTimeout float64, hoursLastUpdated *time.T
 
 	formattedName := NewName(name)
 	result := Member{}
+	var err error
 
-	// match first_name to formattedName.Firstname first
-	// then nickname to formattedName.Nickname
-	// then first_name to formattedName.Lastname in case the user inputted last name first
-	err := database.GetContext(
-		config.Context, &result,
-		`SELECT * FROM members WHERE first_name = ? OR nickname = ? OR first_name = ? LIMIT 1`,
-		formattedName.Firstname, formattedName.Nickname, formattedName.Lastname,
-	)
+	// if first and last was given, try both, then reverse (if they put in last first)
+	// then try by nickname if given, then by first
+	if formattedName.Firstname != "" && formattedName.Lastname != "" {
+		err = database.GetContext(
+			config.Context, &result,
+			`SELECT * FROM members WHERE first_name = ? AND last_name = ? LIMIT 1`,
+			formattedName.Firstname, formattedName.Lastname,
+		)
+		if err == sql.ErrNoRows {
+			err = database.GetContext(
+				config.Context, &result,
+				`SELECT * FROM members WHERE first_name = ? AND last_name = ? LIMIT 1`,
+				formattedName.Lastname, formattedName.Firstname,
+			)
+		}
+	} else {
+		err = database.GetContext(
+			config.Context, &result,
+			`SELECT * FROM members WHERE nickname = ? OR first_name = ? LIMIT 1`,
+			formattedName.Nickname, formattedName.Firstname,
+		)
+	}
 	if err == sql.ErrNoRows {
 		return Member{}, fmt.Errorf("No member found with the name %v", name)
 	}

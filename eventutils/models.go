@@ -1,6 +1,9 @@
 package eventutils
 
-import "time"
+import (
+	"keyclubDiscordBot/memberutils"
+	"time"
+)
 
 // struct to represent a logged event
 type Event struct {
@@ -18,4 +21,12 @@ type Event struct {
 type EventMember struct {
 	EventID  int `db:"event_id"`
 	MemberID int `db:"member_id"`
+}
+
+// contains information about the event logged
+type LogEventResponse struct {
+	Name             string
+	TotalHours       float64
+	MembersLogged    []memberutils.Member
+	MembersNotLogged []memberutils.Member
 }

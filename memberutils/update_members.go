@@ -18,6 +18,7 @@ import (
 // updates the database based on structs
 func UpdateMembers(hoursUpdateTimeout float64, hoursLastUpdated *time.Time, sheetsService *sheets.Service, database *sqlx.DB) error {
 	timeSince := time.Since(*hoursLastUpdated).Seconds()
+	fmt.Println(hoursLastUpdated, hoursUpdateTimeout, timeSince)
 	if timeSince < hoursUpdateTimeout {
 		return fmt.Errorf("Not enough time has passed since the last update, wait %v more seconds.", hoursUpdateTimeout-timeSince)
 	}
@@ -30,7 +31,7 @@ func UpdateMembers(hoursUpdateTimeout float64, hoursLastUpdated *time.Time, shee
 	fmt.Printf("Time for API call: %v\n", time.Since(prevTime))
 
 	prevTime = time.Now()
-	formattedMemberStructs := getFormattedMemberStructs(memberValueRanges)
+	formattedMemberStructs := getMemberStructs(memberValueRanges)
 	fmt.Printf("Time to format: %v\n", time.Since(prevTime))
 
 	// check if it exists first, if yes, update, if no, add it
@@ -66,9 +67,9 @@ func upsertMember(member Member, transaction *sqlx.Tx) error {
 	if err == sql.ErrNoRows {
 		_, insertErr := transaction.NamedExec(`
 			INSERT INTO members
-			(first_name, last_name, nickname, all_hours, term_hours, grad_year, class_year, strikes, personal_email, school_email, phone_number, shirt_size, paid_dues)
+			(first_name, last_name, nickname, all_hours, term_hours, grad_year, class, strikes, personal_email, school_email, phone_number, shirt_size, paid_dues)
 			VALUES
-			(:first_name, :last_name, :nickname, :all_hours, :term_hours, :grad_year, :class_year, :strikes, :personal_email, :school_email, :phone_number, :shirt_size, :paid_dues)`,
+			(:first_name, :last_name, :nickname, :all_hours, :term_hours, :grad_year, :class, :strikes, :personal_email, :school_email, :phone_number, :shirt_size, :paid_dues)`,
 			member,
 		)
 		if insertErr != nil {
@@ -80,7 +81,7 @@ func upsertMember(member Member, transaction *sqlx.Tx) error {
 		member.ID = result.ID // to update the correct row based on primary key (id)
 		_, updateErr := transaction.NamedExec(`
 			UPDATE members SET 
-			first_name=:first_name, last_name=:last_name, nickname=:nickname, all_hours=:all_hours, term_hours=:term_hours, grad_year=:grad_year, class_year=:class_year, strikes=:strikes, personal_email=:personal_email, school_email=:school_email, phone_number=:phone_number, shirt_size=:shirt_size, paid_dues=:paid_dues
+			first_name=:first_name, last_name=:last_name, nickname=:nickname, all_hours=:all_hours, term_hours=:term_hours, grad_year=:grad_year, class=:class, strikes=:strikes, personal_email=:personal_email, school_email=:school_email, phone_number=:phone_number, shirt_size=:shirt_size, paid_dues=:paid_dues
 			WHERE id=:id
 		`, member)
 		if updateErr != nil {
@@ -98,7 +99,7 @@ func getMemberValueRanges(sheetsService *sheets.Service) ([]*sheets.ValueRange, 
 		config.AllHoursRange,
 		config.TermHoursRange,
 		config.GradYearRange,
-		config.ClassYearRange,
+		config.ClassRange,
 		config.StrikesRange,
 		config.PersonalEmailRange,
 		config.SchoolEmailRange,
@@ -113,7 +114,7 @@ func getMemberValueRanges(sheetsService *sheets.Service) ([]*sheets.ValueRange, 
 }
 
 // takes the api call value ranges and turns them into an array of member structs
-func getFormattedMemberStructs(memberValueRanges []*sheets.ValueRange) []Member {
+func getMemberStructs(memberValueRanges []*sheets.ValueRange) []Member {
 	// gets length based on the length of the names column
 	memberValueRangesLength := len(memberValueRanges[0].Values)
 	formattedMemberArray := make([]Member, memberValueRangesLength)
@@ -123,7 +124,7 @@ func getFormattedMemberStructs(memberValueRanges []*sheets.ValueRange) []Member 
 	normalizedAllHours := normalizeFloatValues(memberValueRanges[2].Values, memberValueRangesLength)
 	normalizedTermHours := normalizeFloatValues(memberValueRanges[3].Values, memberValueRangesLength)
 	normalizedGradYears := normalizeIntValues(memberValueRanges[4].Values, memberValueRangesLength)
-	normalizedClassYears := normalizeIntValues(memberValueRanges[5].Values, memberValueRangesLength)
+	normalizedClasses := normalizeStringValues(memberValueRanges[5].Values, memberValueRangesLength)
 	normalizedStrikes := normalizeIntValues(memberValueRanges[6].Values, memberValueRangesLength)
 	normalizedPersonalEmails := normalizeStringValues(memberValueRanges[7].Values, memberValueRangesLength)
 	normalizedSchoolEmails := normalizeStringValues(memberValueRanges[8].Values, memberValueRangesLength)
@@ -141,10 +142,10 @@ func getFormattedMemberStructs(memberValueRanges []*sheets.ValueRange) []Member 
 			AllHours:      normalizedAllHours[i],
 			TermHours:     normalizedTermHours[i],
 			GradYear:      normalizedGradYears[i],
-			ClassYear:     normalizedClassYears[i],
+			Class:         normalizedClasses[i],
 			PersonalEmail: normalizedPersonalEmails[i],
 			SchoolEmail:   normalizedSchoolEmails[i],
-			PhoneNumber:   formatPhoneNumber(normalizedPhoneNumbers[i]),
+			PhoneNumber:   normalizedPhoneNumbers[i],
 			Strikes:       normalizedStrikes[i],
 			ShirtSize:     normalizedShirtSizes[i],
 			PaidDues:      normalizedPaidDues[i],
@@ -211,18 +212,4 @@ func normalizeBoolValues(values [][]any, length int) []bool {
 	}
 
 	return normalizedStringValues
-}
-
-// formats phone numbers into this standard format: (XXX) XXX-XXXX
-func formatPhoneNumber(phoneNumber string) string {
-	cleanNumber := strings.ReplaceAll(phoneNumber, " ", "")
-	cleanNumber = strings.ReplaceAll(cleanNumber, "-", "")
-	cleanNumber = strings.ReplaceAll(cleanNumber, "(", "")
-	cleanNumber = strings.ReplaceAll(cleanNumber, ")", "")
-
-	if len(cleanNumber) == 10 {
-		return fmt.Sprintf("(%s) %s-%s", cleanNumber[0:3], cleanNumber[3:6], cleanNumber[6:10])
-	} else {
-		return phoneNumber // if the number isn't 10 digits, return it as is
-	}
 }
