@@ -44,3 +44,10 @@ Here are some of the features I'd like to add.
   - Returns `monthInfo MonthInfo`
   - The `MonthInfo` struct has the fields `Events []Event`, `NofEvents int`, `TotalHours float64`
   - The `Event` struct has the fields `Date (date)`, `StartTime`, `EndTime`, `Address`, `Leaders`, `NofVolunteers`
+
+## Relationships
+
+- Events to Members
+  - Many to Many: many members can volunteer at many events
+- Events to Leaders
+  - Many to Many: many leaders can lead many events

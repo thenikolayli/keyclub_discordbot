@@ -1,41 +1,30 @@
 package main
 
 import (
-	"keyclubDiscordBot/bot"
 	"keyclubDiscordBot/config"
-	"keyclubDiscordBot/memberutils"
-	"log"
-	"os"
-	"os/signal"
+	"keyclubDiscordBot/eventutils"
 )
 
 func main() {
 	config.LoadConfig()
 
-	// member, err := hoursutils.GetAllRanks(2027, 5, 0, &config.HoursLastUpdated, config.GoogleServices.Sheets, config.DB)
-	// member, err := memberutils.GetMember("badiang willian", 0, &config.HoursLastUpdated, config.GoogleServices.Sheets, config.DB)
-	// member, err := memberutils.GetAllRanks(2027, 5, 0, &config.HoursLastUpdated, config.GoogleServices.Sheets, config.DB)
+	// bot, err := bot.New(config.DiscordToken, config.GuildID)
 	// if err != nil {
-	// 	log.Fatalf("Something happened: %v", err)
+	// 	log.Fatalf("Failed to create bot: %v", err)
 	// }
-	// log.Printf("Member: %+v", member)
-	memberutils.UpdateMembers(config.HoursUpdateTimeout, &config.HoursLastUpdated, config.GoogleServices.Sheets, config.DB)
+	// if err := bot.Start(); err != nil {
+	// 	log.Fatalf("Failed to start bot: %v", err)
+	// }
 
-	bot, err := bot.New(config.DiscordToken, config.GuildID)
-	if err != nil {
-		log.Fatalf("Failed to create bot: %v", err)
-	}
-	if err := bot.Start(); err != nil {
-		log.Fatalf("Failed to start bot: %v", err)
-	}
+	// defer func() {
+	// 	config.DB.Close()
+	// 	bot.Stop()
+	// }()
 
-	defer func() {
-		config.DB.Close()
-		bot.Stop()
-	}()
+	// // waits until an interrupt signal is received to gracefully shut down the bot and close the database connection
+	// stop := make(chan os.Signal, 1)
+	// signal.Notify(stop, os.Interrupt)
+	// <-stop
 
-	// waits until an interrupt signal is received to gracefully shut down the bot and close the database connection
-	stop := make(chan os.Signal, 1)
-	signal.Notify(stop, os.Interrupt)
-	<-stop
+	eventutils.LogEvent("https://docs.google.com/document/d/1d-YUfd-H3k_Bi1X7O-ZT9rDqDtZkzBhIQmtesOR3qwM/edit?tab=t.0#heading=h.qtumv9ezvbs4", config.GoogleServices.Docs)
 }

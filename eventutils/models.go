@@ -13,12 +13,20 @@ type Event struct {
 	StartTime     time.Time `db:"start_time"`
 	EndTime       time.Time `db:"end_time"`
 	Address       string    `db:"address"`
+	NofSlots      int       `db:"n_of_slots"`
 	NofVolunteers int       `db:"n_of_volunteers"`
 	TotalHours    float64   `db:"total_hours"`
+	Tags          string    `db:"tags"`
 }
 
 // struct to represent the intermediary table for many-to-many relationship between events and members
 type EventMember struct {
+	EventID  int `db:"event_id"`
+	MemberID int `db:"member_id"`
+}
+
+// essentially the same as EventMember, but for leaders
+type EventLeader struct {
 	EventID  int `db:"event_id"`
 	MemberID int `db:"member_id"`
 }
@@ -29,4 +37,10 @@ type LogEventResponse struct {
 	TotalHours       float64
 	MembersLogged    []memberutils.Member
 	MembersNotLogged []memberutils.Member
+}
+
+// to represent a row in a sign up doc
+type MemberAttendance struct {
+	Name  string
+	Hours float64
 }
