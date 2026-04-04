@@ -35,7 +35,7 @@ func GetMember(name string, hoursUpdateTimeout float64, hoursLastUpdated *time.T
 				formattedName.Lastname, formattedName.Firstname,
 			)
 		}
-	} else {
+	} else if formattedName.Nickname != "" {
 		err = database.GetContext(
 			config.Context, &result,
 			`SELECT * FROM members WHERE nickname = ? OR first_name = ? LIMIT 1`,

@@ -21,18 +21,27 @@ var (
 	SpreadsheetID     string
 	GoogleAuthKeyPath string
 
-	NamesRange         string = "2025-2026 Members!A2:A"
-	NicknamesRange     string = "2025-2026 Members!B2:B"
-	AllHoursRange      string = "2025-2026 Members!C2:C"
-	TermHoursRange     string = "2025-2026 Members!D2:D"
-	GradYearRange      string = "2025-2026 Members!E2:E"
-	ClassRange         string = "2025-2026 Members!F2:F"
-	StrikesRange       string = "2025-2026 Members!G2:G"
-	PersonalEmailRange string = "2025-2026 Members!H2:H"
-	SchoolEmailRange   string = "2025-2026 Members!I2:I"
-	PhoneNumberRange   string = "2025-2026 Members!J2:J"
-	ShirtSizesRange    string = "2025-2026 Members!K2:K"
-	PaidDuesRange      string = "2025-2026 Members!L2:L"
+	EventsSheetRanges EventsSheetRangesType = EventsSheetRangesType{
+		Names:         "2025-2026 Members!A2:A",
+		Nicknames:     "2025-2026 Members!B2:B",
+		AllHours:      "2025-2026 Members!C2:C",
+		TermHours:     "2025-2026 Members!D2:D",
+		GradYear:      "2025-2026 Members!E2:E",
+		Class:         "2025-2026 Members!F2:F",
+		Strikes:       "2025-2026 Members!G2:G",
+		PersonalEmail: "2025-2026 Members!H2:H",
+		SchoolEmail:   "2025-2026 Members!I2:I",
+		PhoneNumber:   "2025-2026 Members!J2:J",
+		ShirtSizes:    "2025-2026 Members!K2:K",
+		PaidDues:      "2025-2026 Members!L2:L",
+	}
+
+	EventsMembersSheetRanges EventsMembersSheetRangesType = EventsMembersSheetRangesType{
+		SheetName:       "2025-2026 EventsMembers",
+		Events:          "2025-2026 EventsMembers!A1:A",
+		Members:         "2025-2026 EventsMembers!B1:ZZ1",
+		MemberNicknames: "2025-2026 EventsMembers!B2:ZZ2",
+	}
 
 	LeaderRoleId  string
 	OfficerRoleId string

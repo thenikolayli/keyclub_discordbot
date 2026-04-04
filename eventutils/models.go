@@ -2,21 +2,20 @@ package eventutils
 
 import (
 	"keyclubDiscordBot/memberutils"
-	"time"
 )
 
 // struct to represent a logged event
 type Event struct {
-	ID            int       `db:"id"`
-	Name          string    `db:"name"`
-	Date          time.Time `db:"date"`
-	StartTime     time.Time `db:"start_time"`
-	EndTime       time.Time `db:"end_time"`
-	Address       string    `db:"address"`
-	NofSlots      int       `db:"n_of_slots"`
-	NofVolunteers int       `db:"n_of_volunteers"`
-	TotalHours    float64   `db:"total_hours"`
-	Tags          string    `db:"tags"`
+	ID            int     `db:"id"`
+	Name          string  `db:"name"`
+	Date          string  `db:"date"`
+	StartTime     string  `db:"start_time"`
+	EndTime       string  `db:"end_time"`
+	Address       string  `db:"address"`
+	NofSlots      int     `db:"n_of_slots"`
+	NofVolunteers int     `db:"n_of_volunteers"`
+	TotalHours    float64 `db:"total_hours"`
+	Tags          string  `db:"tags"`
 }
 
 // struct to represent the intermediary table for many-to-many relationship between events and members
@@ -34,13 +33,17 @@ type EventLeader struct {
 // contains information about the event logged
 type LogEventResponse struct {
 	Name             string
-	TotalHours       float64
+	Event            Event
 	MembersLogged    []memberutils.Member
 	MembersNotLogged []memberutils.Member
 }
 
 // to represent a row in a sign up doc
+// hours start index is the index of the hours cell, it's where you put the calculated hours
 type MemberAttendance struct {
-	Name  string
-	Hours float64
+	Name            string
+	Hours           float64
+	HoursStartIndex int
+	HoursEndIndex   int
+	Column          string
 }

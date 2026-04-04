@@ -26,5 +26,5 @@ func main() {
 	// signal.Notify(stop, os.Interrupt)
 	// <-stop
 
-	eventutils.LogEvent("https://docs.google.com/document/d/1d-YUfd-H3k_Bi1X7O-ZT9rDqDtZkzBhIQmtesOR3qwM/edit?tab=t.0#heading=h.qtumv9ezvbs4", config.GoogleServices.Docs)
+	eventutils.LogEvent("https://docs.google.com/document/d/1MlPWssjw_PRoUmASr60jGLA8DNiS6rPbM5TDW_8m1GU/edit?tab=t.0")
 }

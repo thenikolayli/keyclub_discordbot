@@ -105,20 +105,27 @@ type Name struct {
 // creates a new instance of type Name based on a string input
 // this is a standalone function because it's often called on a string input, not a member struct
 func NewName(name string) Name {
-	nameParts := strings.Split(name, " ")
-
-	// if only one name was provided, assume that it's either the fist name or the nickname
-	if len(nameParts) == 1 {
+	nameParts := strings.Split(name, ", ")
+	if len(nameParts) != 1 {
 		return Name{
-			Firstname: strings.ToLower(nameParts[0]),
-			Lastname:  "",
-			Nickname:  strings.ToLower(nameParts[0]),
+			Firstname: strings.ToLower(nameParts[1]),
+			Lastname:  strings.ToLower(nameParts[0]),
+			Nickname:  "",
 		}
-	} else { // otherwise, assume the full name was provided
+	} else {
+		nameParts = strings.Split(name, " ")
+	}
+	if len(nameParts) != 1 {
 		return Name{
 			Firstname: strings.ToLower(nameParts[0]),
 			Lastname:  strings.ToLower(nameParts[1]),
 			Nickname:  "",
+		}
+	} else {
+		return Name{
+			Firstname: strings.ToLower(nameParts[0]),
+			Lastname:  "",
+			Nickname:  strings.ToLower(nameParts[0]),
 		}
 	}
 }

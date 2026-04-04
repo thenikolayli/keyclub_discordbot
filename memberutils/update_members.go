@@ -94,18 +94,18 @@ func upsertMember(member Member, transaction *sqlx.Tx) error {
 // fetches and returns google sheets api value ranges (unformatted)
 func getMemberValueRanges(sheetsService *sheets.Service) ([]*sheets.ValueRange, error) {
 	data, err := sheetsService.Spreadsheets.Values.BatchGet(config.SpreadsheetID).Ranges(
-		config.NamesRange,
-		config.NicknamesRange,
-		config.AllHoursRange,
-		config.TermHoursRange,
-		config.GradYearRange,
-		config.ClassRange,
-		config.StrikesRange,
-		config.PersonalEmailRange,
-		config.SchoolEmailRange,
-		config.PhoneNumberRange,
-		config.ShirtSizesRange,
-		config.PaidDuesRange,
+		config.EventsSheetRanges.Names,
+		config.EventsSheetRanges.Nicknames,
+		config.EventsSheetRanges.AllHours,
+		config.EventsSheetRanges.TermHours,
+		config.EventsSheetRanges.GradYear,
+		config.EventsSheetRanges.Class,
+		config.EventsSheetRanges.Strikes,
+		config.EventsSheetRanges.PersonalEmail,
+		config.EventsSheetRanges.SchoolEmail,
+		config.EventsSheetRanges.PhoneNumber,
+		config.EventsSheetRanges.ShirtSizes,
+		config.EventsSheetRanges.PaidDues,
 	).Do()
 	if err != nil {
 		return nil, fmt.Errorf("Failed to batch get spreadsheet ranges: %v", err)
