@@ -47,7 +47,7 @@ type FormattedMember struct {
 func (member Member) Format() FormattedMember {
 	name := cases.Title(language.English).String(member.Firstname)
 	if member.Nickname != "" {
-		name += fmt.Sprintf(" \"%s\"", member.Nickname)
+		name += cases.Title(language.English).String(fmt.Sprintf(` "%v" `, member.Nickname))
 	}
 	if member.Middlename != "" {
 		name += " " + cases.Title(language.English).String(member.Middlename)
@@ -114,41 +114,38 @@ type Name struct {
 // names are in a First "Nick" Middle Last format
 func NewName(name string) Name {
 	nameParts := strings.Fields(name)
-	for i := range nameParts {
-		nameParts[i] = strings.ToLower(strings.Trim(nameParts[i], `"`))
-	}
 
 	if len(nameParts) == 2 {
 		return Name{
-			First: nameParts[0],
-			Last:  nameParts[1],
+			First: strings.ToLower(strings.Trim(nameParts[0], `"`)),
+			Last:  strings.ToLower(strings.Trim(nameParts[1], `"`)),
 		}
 	} else if len(nameParts) == 3 {
 		// First "Nick" Last vs First Middle Last
 		if strings.Contains(nameParts[1], `"`) {
 			return Name{
-				First: nameParts[0],
-				Nick:  nameParts[1],
-				Last:  nameParts[2],
+				First: strings.ToLower(strings.Trim(nameParts[0], `"`)),
+				Nick:  strings.ToLower(strings.Trim(nameParts[1], `"`)),
+				Last:  strings.ToLower(strings.Trim(nameParts[2], `"`)),
 			}
 		} else {
 			return Name{
-				First:  nameParts[0],
-				Middle: nameParts[1],
-				Last:   nameParts[2],
+				First:  strings.ToLower(strings.Trim(nameParts[0], `"`)),
+				Middle: strings.ToLower(strings.Trim(nameParts[1], `"`)),
+				Last:   strings.ToLower(strings.Trim(nameParts[2], `"`)),
 			}
 		}
 	} else if len(nameParts) == 4 {
 		return Name{
-			First:  nameParts[0],
-			Nick:   nameParts[1],
-			Middle: nameParts[2],
-			Last:   nameParts[3],
+			First:  strings.ToLower(strings.Trim(nameParts[0], `"`)),
+			Nick:   strings.ToLower(strings.Trim(nameParts[1], `"`)),
+			Middle: strings.ToLower(strings.Trim(nameParts[2], `"`)),
+			Last:   strings.ToLower(strings.Trim(nameParts[3], `"`)),
 		}
 	}
 	return Name{
-		First: nameParts[0],
-		Nick:  nameParts[0],
+		First: strings.ToLower(strings.Trim(nameParts[0], `"`)),
+		Nick:  strings.ToLower(strings.Trim(nameParts[0], `"`)),
 	}
 }
 

@@ -32,7 +32,7 @@ func HoursHandler(session *discordgo.Session, interaction *discordgo.Interaction
 			genericutils.SendStringErrorEmbed(
 				"Member not found",
 				fmt.Sprintf(`Could not find a member with the name "%v" or Discord ID %v.`, name, interaction.Member.User.ID),
-				fmt.Sprintf("Last updated: %v", config.HoursLastUpdated.Format("Jan 2 2006 15:04:05")),
+				genericutils.GetFormattedLastUpdated(config.HoursLastUpdated),
 				session,
 				interaction,
 			)
@@ -61,7 +61,7 @@ func HoursHandler(session *discordgo.Session, interaction *discordgo.Interaction
 						},
 					},
 					Footer: &discordgo.MessageEmbedFooter{
-						Text: fmt.Sprintf("Last updated: %v", config.HoursLastUpdated.Format("2006-01-02 15:04:05")),
+						Text: genericutils.GetFormattedLastUpdated(config.HoursLastUpdated),
 					},
 				},
 			},

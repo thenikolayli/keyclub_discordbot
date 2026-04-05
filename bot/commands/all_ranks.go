@@ -32,12 +32,14 @@ var AllRanksCommand = &discordgo.ApplicationCommand{
 
 func AllRanksHandler(session *discordgo.Session, interaction *discordgo.InteractionCreate) {
 	gradYear := interaction.ApplicationCommandData().Options[0].StringValue()
-	topNInt := config.DefaultRankTopN                          // default to top 5 ranks
-	if len(interaction.ApplicationCommandData().Options) > 1 { // if topN was given
+	topNInt := config.DefaultRankTopN                           // default to top 5 ranks
+	if len(interaction.ApplicationCommandData().Options) == 2 { // if topN was given
 		topNIntContender, err := strconv.Atoi(interaction.ApplicationCommandData().Options[1].StringValue())
 		if err == nil {
 			topNInt = topNIntContender
 		}
+	} else {
+		topNInt = config.DefaultRankTopN
 	}
 	gradYearInt, err := strconv.Atoi(gradYear)
 	if err != nil {
@@ -109,7 +111,7 @@ func AllRanksHandler(session *discordgo.Session, interaction *discordgo.Interact
 						},
 					},
 					Footer: &discordgo.MessageEmbedFooter{
-						Text: fmt.Sprintf("Last updated: %v", config.HoursLastUpdated.Format("2006-01-02 15:04:05")),
+						Text: genericutils.GetFormattedLastUpdated(config.HoursLastUpdated),
 					},
 				},
 			},

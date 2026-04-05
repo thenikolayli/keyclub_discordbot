@@ -10,10 +10,10 @@ import (
 )
 
 // Takes an attendance document ID and adds the event to the calendar, returning the link to the calendar event
-func AddEventToCalendar(documentId string) (string, error) {
+func AddEventToCalendar(documentId string) (calendar.Event, error) {
 	event, _, err := GetEventInfo(documentId, config.GoogleServices.Docs)
 	if err != nil {
-		return "", fmt.Errorf("Issue extracting event info while adding event to calendar: %w", err)
+		return calendar.Event{}, fmt.Errorf("Issue extracting event info while adding event to calendar: %w", err)
 	}
 	noDate := regexp.MustCompile(`\(.*?\)`)
 	fmt.Printf("%sT%s-07:00\n", event.Date, event.StartTime)
@@ -40,14 +40,14 @@ func AddEventToCalendar(documentId string) (string, error) {
 	}
 
 	if alreadyExists(calendarEvent) {
-		return "", fmt.Errorf("Event already exists in calendar")
+		return calendar.Event{}, fmt.Errorf("Event already exists in calendar")
 	}
 
 	result, err := config.GoogleServices.Calendar.Events.Insert(config.CalendarID, calendarEvent).SupportsAttachments(true).Do()
 	if err != nil {
-		return "", fmt.Errorf("Issue inserting event into calendar: %w", err)
+		return calendar.Event{}, fmt.Errorf("Issue inserting event into calendar: %w", err)
 	}
-	return result.HtmlLink, nil
+	return *result, nil
 }
 
 func alreadyExists(event *calendar.Event) bool {

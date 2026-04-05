@@ -13,14 +13,18 @@ var Commands = []*discordgo.ApplicationCommand{
 	commands.MemberLookupCommand,
 	commands.AllRanksCommand,
 	commands.TermRanksCommand,
+	commands.LogEventCommand,
+	commands.AddEventToCalendarCommand,
 }
 
 // passes a function to get role Ids so they are updated when the function is called so they're not empty upon package initialization
 var CommandHandlers = map[string]func(*discordgo.Session, *discordgo.InteractionCreate){
-	"hours":     commands.HoursHandler,
-	"member":    requireRole(func() []string { return []string{config.OfficerRoleId, config.LeaderRoleId} }, commands.MemberLookupHandler),
-	"allranks":  commands.AllRanksHandler,
-	"termranks": commands.TermRanksHandler,
+	"hours":              commands.HoursHandler,
+	"member":             requireRole(func() []string { return []string{config.OfficerRoleId, config.LeaderRoleId} }, commands.MemberLookupHandler),
+	"allranks":           commands.AllRanksHandler,
+	"termranks":          commands.TermRanksHandler,
+	"logevent":           requireRole(func() []string { return []string{config.OfficerRoleId} }, commands.LogEventHandler),
+	"addeventtocalendar": requireRole(func() []string { return []string{config.OfficerRoleId, config.LeaderRoleId} }, commands.AddEventToCalendarHandler),
 }
 
 // checks if a member has a certain role

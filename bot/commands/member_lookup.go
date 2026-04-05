@@ -30,7 +30,7 @@ func MemberLookupHandler(session *discordgo.Session, interaction *discordgo.Inte
 		genericutils.SendStringErrorEmbed(
 			"Member not found",
 			fmt.Sprintf(`Could not find a member with the name "%v".`, name),
-			fmt.Sprintf("Last updated: %v", config.HoursLastUpdated.Format("Jan 2 2006 15:04:05")),
+			genericutils.GetFormattedLastUpdated(config.HoursLastUpdated),
 			session,
 			interaction,
 		)
@@ -58,7 +58,7 @@ func MemberLookupHandler(session *discordgo.Session, interaction *discordgo.Inte
 					Strikes: *%v*
 					`, formattedMember.AllHours, formattedMember.TermHours, formattedMember.GradYear, formattedMember.Class, formattedMember.PhoneNumber, formattedMember.PersonalEmail, formattedMember.SchoolEmail, formattedMember.ShirtSize, formattedMember.PaidDues, formattedMember.Strikes),
 					Footer: &discordgo.MessageEmbedFooter{
-						Text: fmt.Sprintf("Last updated: %v", config.HoursLastUpdated.Format("Jan 2 2006 15:04:05")),
+						Text: genericutils.GetFormattedLastUpdated(config.HoursLastUpdated),
 					},
 				},
 			},

@@ -19,9 +19,12 @@ func LogEvent(documentId string) (LogEventResponse, error) {
 		return LogEventResponse{}, fmt.Errorf("Issue extracting event info while logging event: %w", err)
 	}
 	requests := batchRequests(memberAttendance)
-	config.GoogleServices.Docs.Documents.BatchUpdate(config.SpreadsheetID, &docs.BatchUpdateDocumentRequest{
+	_, err = config.GoogleServices.Docs.Documents.BatchUpdate(documentId, &docs.BatchUpdateDocumentRequest{
 		Requests: requests,
 	}).Do()
+	if err != nil {
+		return LogEventResponse{}, fmt.Errorf("Issue updating document while logging event: %w", err)
+	}
 
 	emptyRowEventsMembers, err := findNextEmptyRowNoDupes(config.EventsMembersSheetRanges.Events, event.Name)
 	if err != nil {

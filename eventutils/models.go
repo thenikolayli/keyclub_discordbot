@@ -1,5 +1,7 @@
 package eventutils
 
+import "fmt"
+
 // struct to represent a logged event
 type Event struct {
 	ID            int     `db:"id"`
@@ -41,4 +43,12 @@ type MemberAttendance struct {
 	HoursStartIndex int
 	HoursEndIndex   int
 	ColumnFound     bool
+}
+
+func FormatMemberAttendances(members []MemberAttendance) []string {
+	formatted := make([]string, len(members))
+	for i, member := range members {
+		formatted[i] = fmt.Sprintf("%s - %.2f hours", member.Name, member.Hours)
+	}
+	return formatted
 }

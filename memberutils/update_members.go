@@ -18,24 +18,23 @@ import (
 // updates the database based on structs
 func UpdateMembers(hoursUpdateTimeout float64, hoursLastUpdated *time.Time, sheetsService *sheets.Service, database *sqlx.DB) error {
 	timeSince := time.Since(*hoursLastUpdated).Seconds()
-	fmt.Println(hoursLastUpdated, hoursUpdateTimeout, timeSince)
 	if timeSince < hoursUpdateTimeout {
 		return fmt.Errorf("Not enough time has passed since the last update, wait %v more seconds.", hoursUpdateTimeout-timeSince)
 	}
 
-	prevTime := time.Now()
+	// prevTime := time.Now()
 	memberValueRanges, err := getMemberValueRanges(sheetsService)
 	if err != nil {
 		return fmt.Errorf("Failed to update members: %v", err)
 	}
-	fmt.Printf("Time for API call: %v\n", time.Since(prevTime))
+	// fmt.Printf("Time for API call: %v\n", time.Since(prevTime))
 
-	prevTime = time.Now()
+	// prevTime = time.Now()
 	formattedMemberStructs := getMemberStructs(memberValueRanges)
-	fmt.Printf("Time to format: %v\n", time.Since(prevTime))
+	// fmt.Printf("Time to format: %v\n", time.Since(prevTime))
 
 	// check if it exists first, if yes, update, if no, add it
-	prevTime = time.Now()
+	// prevTime = time.Now()
 	transaction, err := database.BeginTxx(config.Context, nil)
 	if err != nil {
 		return fmt.Errorf("Failed to create a transaction: %v", err)
@@ -47,7 +46,7 @@ func UpdateMembers(hoursUpdateTimeout float64, hoursLastUpdated *time.Time, shee
 		}
 	}
 	transaction.Commit()
-	fmt.Printf("Time to run DB queries: %v\n", time.Since(prevTime))
+	// fmt.Printf("Time to run DB queries: %v\n", time.Since(prevTime))
 
 	*hoursLastUpdated = time.Now()
 	return nil

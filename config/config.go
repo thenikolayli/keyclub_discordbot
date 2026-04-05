@@ -68,8 +68,8 @@ var (
 
 	DB *sqlx.DB
 
-	HoursUpdateTimeout float64 = 3600
-	HoursLastUpdated   time.Time
+	HoursUpdateTimeout float64   = 3600
+	HoursLastUpdated   time.Time = time.Date(2026, time.January, 1, 01, 01, 0, 0, time.UTC)
 
 	DefaultRankTopN int = 5
 
@@ -97,8 +97,6 @@ func LoadConfig() {
 	if err != nil {
 		log.Fatalf("Failed to prepare database: %v", err)
 	}
-
-	HoursLastUpdated = time.Now()
 
 	Context = context.Background()
 	GoogleServicesContender, err := getGoogleServices(Context, GoogleAuthKeyPath)

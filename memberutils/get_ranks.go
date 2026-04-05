@@ -18,25 +18,26 @@ func GetAllRanks(gradYear int, topN int, hoursUpdateTimeout float64, hoursLastUp
 	ranks := []Member{}
 	err := database.SelectContext(
 		config.Context, &ranks,
-		"select * from members where grad_year = ? order by all_hours desc",
+		"SELECT * FROM members WHERE grad_year = ? ORDER BY all_hours DESC",
 		gradYear,
 	)
 	if err != nil {
 		return []Member{}, fmt.Errorf("Failed to get ranks: %v", err)
 	}
+
 	// removes officers
 	topNRanks := []Member{}
 	if topN != -1 {
 		currentIndex := 0
-		for len(topNRanks) < topN { // while topNRanks doesn't have topN ranks
-			if !slices.Contains(config.Officers, fmt.Sprintf("%v %v", ranks[currentIndex].Firstname, ranks[currentIndex].Lastname)) {
+		for len(topNRanks) < topN {
+			if !slices.Contains(config.Officers, fmt.Sprintf("%s %s", ranks[currentIndex].Firstname, ranks[currentIndex].Lastname)) {
 				topNRanks = append(topNRanks, ranks[currentIndex])
 			}
 			currentIndex++
 		}
 	} else {
 		for _, rank := range ranks {
-			if !slices.Contains(config.Officers, fmt.Sprintf("%v, %v", rank.Firstname, rank.Lastname)) {
+			if !slices.Contains(config.Officers, fmt.Sprintf("%s %s", rank.Firstname, rank.Lastname)) {
 				topNRanks = append(topNRanks, rank)
 			}
 		}
@@ -53,7 +54,7 @@ func GetTermRanks(gradYear int, topN int, hoursUpdateTimeout float64, hoursLastU
 	ranks := []Member{}
 	err := database.SelectContext(
 		config.Context, &ranks,
-		"select * from members where grad_year = ? order by term_hours desc",
+		"SELECT * FROM members WHERE grad_year = ? ORDER BY term_hours DESC",
 		gradYear,
 	)
 	if err != nil {
@@ -63,15 +64,15 @@ func GetTermRanks(gradYear int, topN int, hoursUpdateTimeout float64, hoursLastU
 	topNRanks := []Member{}
 	if topN != -1 {
 		currentIndex := 0
-		for len(topNRanks) < topN { // while topNRanks doesn't have topN ranks
-			if !slices.Contains(config.Officers, fmt.Sprintf("%v %v", ranks[currentIndex].Firstname, ranks[currentIndex].Lastname)) {
+		for len(topNRanks) < topN {
+			if !slices.Contains(config.Officers, fmt.Sprintf("%s %s", ranks[currentIndex].Firstname, ranks[currentIndex].Lastname)) {
 				topNRanks = append(topNRanks, ranks[currentIndex])
 			}
 			currentIndex++
 		}
 	} else {
 		for _, rank := range ranks {
-			if !slices.Contains(config.Officers, fmt.Sprintf("%v, %v", rank.Firstname, rank.Lastname)) {
+			if !slices.Contains(config.Officers, fmt.Sprintf("%s %s", rank.Firstname, rank.Lastname)) {
 				topNRanks = append(topNRanks, rank)
 			}
 		}
