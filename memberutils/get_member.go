@@ -3,8 +3,9 @@ package memberutils
 import (
 	"database/sql"
 	"fmt"
-	"keyclubDiscordBot/config"
 	"time"
+
+	"keyclubDiscordBot/config"
 
 	"github.com/jmoiron/sqlx"
 	"google.golang.org/api/sheets/v4"
@@ -22,24 +23,24 @@ func GetMember(name string, hoursUpdateTimeout float64, hoursLastUpdated *time.T
 
 	// if first and last was given, try both, then reverse (if they put in last first)
 	// then try by nickname if given, then by first
-	if formattedName.Firstname != "" && formattedName.Lastname != "" {
+	if formattedName.First != "" && formattedName.Last != "" {
 		err = database.GetContext(
 			config.Context, &result,
 			`SELECT * FROM members WHERE first_name = ? AND last_name = ? LIMIT 1`,
-			formattedName.Firstname, formattedName.Lastname,
+			formattedName.First, formattedName.Last,
 		)
 		if err == sql.ErrNoRows {
 			err = database.GetContext(
 				config.Context, &result,
 				`SELECT * FROM members WHERE first_name = ? AND last_name = ? LIMIT 1`,
-				formattedName.Lastname, formattedName.Firstname,
+				formattedName.Last, formattedName.First,
 			)
 		}
-	} else if formattedName.Nickname != "" {
+	} else if formattedName.Nick != "" {
 		err = database.GetContext(
 			config.Context, &result,
 			`SELECT * FROM members WHERE nickname = ? OR first_name = ? LIMIT 1`,
-			formattedName.Nickname, formattedName.Firstname,
+			formattedName.Nick, formattedName.First,
 		)
 	}
 	if err == sql.ErrNoRows {

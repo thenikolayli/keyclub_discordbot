@@ -3,8 +3,9 @@ package memberutils
 import (
 	"database/sql"
 	"fmt"
-	"keyclubDiscordBot/config"
 	"time"
+
+	"keyclubDiscordBot/config"
 
 	"github.com/jmoiron/sqlx"
 	"google.golang.org/api/sheets/v4"
@@ -15,8 +16,7 @@ import (
 func GetMemberByDiscordId(discordId string, hoursUpdateTimeout float64, hoursLastUpdated *time.Time, sheetsService *sheets.Service, database *sqlx.DB) (Member, error) {
 	// attempts to update members if enough time has passed since the last update
 	UpdateMembers(hoursUpdateTimeout, hoursLastUpdated, sheetsService, database)
-
-	result := Member{}
+	var result Member
 
 	// match first_name to formattedName.Firstname first
 	// then nickname to formattedName.Nickname

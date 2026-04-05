@@ -12,8 +12,9 @@ import (
 type Member struct {
 	ID            int     `db:"id"`
 	Firstname     string  `db:"first_name"`
-	Lastname      string  `db:"last_name"`
 	Nickname      string  `db:"nickname"`
+	Middlename    string  `db:"middle_name"`
+	Lastname      string  `db:"last_name"`
 	AllHours      float64 `db:"all_hours"`
 	TermHours     float64 `db:"term_hours"`
 	GradYear      int     `db:"grad_year"`
@@ -44,10 +45,15 @@ type FormattedMember struct {
 
 // formats a member for a more readable output, such as for the member lookup command
 func (member Member) Format() FormattedMember {
-	name := cases.Title(language.English).String(member.Firstname) + " " + cases.Title(language.English).String(member.Lastname)
+	name := cases.Title(language.English).String(member.Firstname)
 	if member.Nickname != "" {
-		name = cases.Title(language.English).String(member.Firstname) + ` "` + cases.Title(language.English).String(member.Nickname) + `" ` + cases.Title(language.English).String(member.Lastname)
+		name += fmt.Sprintf(" \"%s\"", member.Nickname)
 	}
+	if member.Middlename != "" {
+		name += " " + cases.Title(language.English).String(member.Middlename)
+	}
+	name += " " + cases.Title(language.English).String(member.Lastname)
+
 	if member.PersonalEmail == "" {
 		member.PersonalEmail = "N/A"
 	}
@@ -97,35 +103,65 @@ func formatPhoneNumber(phoneNumber string) string {
 
 // struct to represnt a formatted name
 type Name struct {
-	Firstname string
-	Lastname  string
-	Nickname  string
+	First  string
+	Nick   string
+	Middle string
+	Last   string
 }
 
 // creates a new instance of type Name based on a string input
 // this is a standalone function because it's often called on a string input, not a member struct
+// names are in a First "Nick" Middle Last format
 func NewName(name string) Name {
-	nameParts := strings.Split(name, ", ")
-	if len(nameParts) != 1 {
-		return Name{
-			Firstname: strings.ToLower(nameParts[1]),
-			Lastname:  strings.ToLower(nameParts[0]),
-			Nickname:  "",
-		}
-	} else {
-		nameParts = strings.Split(name, " ")
+	nameParts := strings.Fields(name)
+	for i := range nameParts {
+		nameParts[i] = strings.ToLower(strings.Trim(nameParts[i], `"`))
 	}
-	if len(nameParts) != 1 {
+
+	if len(nameParts) == 2 {
 		return Name{
-			Firstname: strings.ToLower(nameParts[0]),
-			Lastname:  strings.ToLower(nameParts[1]),
-			Nickname:  "",
+			First: nameParts[0],
+			Last:  nameParts[1],
 		}
-	} else {
+	} else if len(nameParts) == 3 {
+		// First "Nick" Last vs First Middle Last
+		if strings.Contains(nameParts[1], `"`) {
+			return Name{
+				First: nameParts[0],
+				Nick:  nameParts[1],
+				Last:  nameParts[2],
+			}
+		} else {
+			return Name{
+				First:  nameParts[0],
+				Middle: nameParts[1],
+				Last:   nameParts[2],
+			}
+		}
+	} else if len(nameParts) == 4 {
 		return Name{
-			Firstname: strings.ToLower(nameParts[0]),
-			Lastname:  "",
-			Nickname:  strings.ToLower(nameParts[0]),
+			First:  nameParts[0],
+			Nick:   nameParts[1],
+			Middle: nameParts[2],
+			Last:   nameParts[3],
 		}
 	}
+	return Name{
+		First: nameParts[0],
+		Nick:  nameParts[0],
+	}
+}
+
+// name speaks for itself
+func SameName(name1 Name, name2 Name) bool {
+	if name1.First == name2.First && name1.Last == name2.Last {
+		return true
+	}
+	if name1.First == name2.Last && name1.Last == name2.First {
+		return true
+	}
+	if name1.Nick != "" && (name1.Nick == name2.First || name1.Nick == name2.Nick) {
+		return true
+	}
+	return false
 }

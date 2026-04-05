@@ -1,9 +1,5 @@
 package eventutils
 
-import (
-	"keyclubDiscordBot/memberutils"
-)
-
 // struct to represent a logged event
 type Event struct {
 	ID            int     `db:"id"`
@@ -32,10 +28,9 @@ type EventLeader struct {
 
 // contains information about the event logged
 type LogEventResponse struct {
-	Name             string
 	Event            Event
-	MembersLogged    []memberutils.Member
-	MembersNotLogged []memberutils.Member
+	MembersLogged    []MemberAttendance
+	MembersNotLogged []MemberAttendance
 }
 
 // to represent a row in a sign up doc
@@ -45,5 +40,5 @@ type MemberAttendance struct {
 	Hours           float64
 	HoursStartIndex int
 	HoursEndIndex   int
-	Column          string
+	ColumnFound     bool
 }

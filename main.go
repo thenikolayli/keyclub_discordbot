@@ -1,6 +1,8 @@
 package main
 
 import (
+	"fmt"
+
 	"keyclubDiscordBot/config"
 	"keyclubDiscordBot/eventutils"
 )
@@ -26,5 +28,18 @@ func main() {
 	// signal.Notify(stop, os.Interrupt)
 	// <-stop
 
-	eventutils.LogEvent("https://docs.google.com/document/d/1MlPWssjw_PRoUmASr60jGLA8DNiS6rPbM5TDW_8m1GU/edit?tab=t.0")
+	// logEventResponse, err := eventutils.LogEvent("https://docs.google.com/document/d/1MlPWssjw_PRoUmASr60jGLA8DNiS6rPbM5TDW_8m1GU/edit?tab=t.0")
+	// if err != nil {
+	// 	panic(err)
+	// }
+	// fmt.Println(logEventResponse.Event)
+	// fmt.Println(logEventResponse.MembersLogged)
+	// fmt.Println(logEventResponse.MembersNotLogged)
+
+	docId := eventutils.DocsUrlToId("https://docs.google.com/document/d/1MlPWssjw_PRoUmASr60jGLA8DNiS6rPbM5TDW_8m1GU/edit?tab=t.0")
+	eventLink, err := eventutils.AddEventToCalendar(docId)
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println(eventLink)
 }

@@ -1,9 +1,15 @@
 package config
 
+import (
+	"google.golang.org/api/calendar/v3"
+	"google.golang.org/api/docs/v1"
+	"google.golang.org/api/sheets/v4"
+)
+
 // information about the event sheet ranges
-type EventsSheetRangesType struct {
+type MembersSheetRangesType struct {
+	SheetName     string
 	Names         string
-	Nicknames     string
 	AllHours      string
 	TermHours     string
 	GradYear      string
@@ -18,21 +24,30 @@ type EventsSheetRangesType struct {
 
 // information about the members sheet ranges
 // currently not used
-type MembersSheetRangesType struct {
-	Names         string
+type EventsSheetRangesType struct {
+	SheetName     string
+	Events        string
 	Dates         string
 	StartTimes    string
 	EndTimes      string
 	Addresses     string
 	NofSlots      string
 	NofVolunteers string
+	TotalHours    string
 	Tags          string
 }
 
 // information about the eventsmembers sheet ranges
 type EventsMembersSheetRangesType struct {
-	SheetName       string
-	Events          string
-	Members         string
-	MemberNicknames string
+	SheetName string
+	Events    string
+	Members   string
+}
+
+// struct representing an object containing all Google Services
+// to be passed between functions that interact with the google APIs
+type GoogleServicesType struct {
+	Docs     *docs.Service
+	Sheets   *sheets.Service
+	Calendar *calendar.Service
 }

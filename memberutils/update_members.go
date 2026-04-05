@@ -3,10 +3,10 @@ package memberutils
 import (
 	"database/sql"
 	"fmt"
-	"keyclubDiscordBot/config"
 	"strconv"
-	"strings"
 	"time"
+
+	"keyclubDiscordBot/config"
 
 	"github.com/jmoiron/sqlx"
 	"google.golang.org/api/sheets/v4"
@@ -67,9 +67,9 @@ func upsertMember(member Member, transaction *sqlx.Tx) error {
 	if err == sql.ErrNoRows {
 		_, insertErr := transaction.NamedExec(`
 			INSERT INTO members
-			(first_name, last_name, nickname, all_hours, term_hours, grad_year, class, strikes, personal_email, school_email, phone_number, shirt_size, paid_dues)
+			(first_name, nickname, middle_name, last_name, all_hours, term_hours, grad_year, class, strikes, personal_email, school_email, phone_number, shirt_size, paid_dues)
 			VALUES
-			(:first_name, :last_name, :nickname, :all_hours, :term_hours, :grad_year, :class, :strikes, :personal_email, :school_email, :phone_number, :shirt_size, :paid_dues)`,
+			(:first_name, :nickname, :middle_name, :last_name, :all_hours, :term_hours, :grad_year, :class, :strikes, :personal_email, :school_email, :phone_number, :shirt_size, :paid_dues)`,
 			member,
 		)
 		if insertErr != nil {
@@ -81,7 +81,7 @@ func upsertMember(member Member, transaction *sqlx.Tx) error {
 		member.ID = result.ID // to update the correct row based on primary key (id)
 		_, updateErr := transaction.NamedExec(`
 			UPDATE members SET 
-			first_name=:first_name, last_name=:last_name, nickname=:nickname, all_hours=:all_hours, term_hours=:term_hours, grad_year=:grad_year, class=:class, strikes=:strikes, personal_email=:personal_email, school_email=:school_email, phone_number=:phone_number, shirt_size=:shirt_size, paid_dues=:paid_dues
+			first_name=:first_name, nickname=:nickname, middle_name=:middle_name, last_name=:last_name, all_hours=:all_hours, term_hours=:term_hours, grad_year=:grad_year, class=:class, strikes=:strikes, personal_email=:personal_email, school_email=:school_email, phone_number=:phone_number, shirt_size=:shirt_size, paid_dues=:paid_dues
 			WHERE id=:id
 		`, member)
 		if updateErr != nil {
@@ -94,18 +94,17 @@ func upsertMember(member Member, transaction *sqlx.Tx) error {
 // fetches and returns google sheets api value ranges (unformatted)
 func getMemberValueRanges(sheetsService *sheets.Service) ([]*sheets.ValueRange, error) {
 	data, err := sheetsService.Spreadsheets.Values.BatchGet(config.SpreadsheetID).Ranges(
-		config.EventsSheetRanges.Names,
-		config.EventsSheetRanges.Nicknames,
-		config.EventsSheetRanges.AllHours,
-		config.EventsSheetRanges.TermHours,
-		config.EventsSheetRanges.GradYear,
-		config.EventsSheetRanges.Class,
-		config.EventsSheetRanges.Strikes,
-		config.EventsSheetRanges.PersonalEmail,
-		config.EventsSheetRanges.SchoolEmail,
-		config.EventsSheetRanges.PhoneNumber,
-		config.EventsSheetRanges.ShirtSizes,
-		config.EventsSheetRanges.PaidDues,
+		config.MembersSheetRanges.Names,
+		config.MembersSheetRanges.AllHours,
+		config.MembersSheetRanges.TermHours,
+		config.MembersSheetRanges.GradYear,
+		config.MembersSheetRanges.Class,
+		config.MembersSheetRanges.Strikes,
+		config.MembersSheetRanges.PersonalEmail,
+		config.MembersSheetRanges.SchoolEmail,
+		config.MembersSheetRanges.PhoneNumber,
+		config.MembersSheetRanges.ShirtSizes,
+		config.MembersSheetRanges.PaidDues,
 	).Do()
 	if err != nil {
 		return nil, fmt.Errorf("Failed to batch get spreadsheet ranges: %v", err)
@@ -120,25 +119,26 @@ func getMemberStructs(memberValueRanges []*sheets.ValueRange) []Member {
 	formattedMemberArray := make([]Member, memberValueRangesLength)
 
 	normalizedNames := normalizeStringValues(memberValueRanges[0].Values, memberValueRangesLength)
-	normalizedNicknames := normalizeStringValues(memberValueRanges[1].Values, memberValueRangesLength)
-	normalizedAllHours := normalizeFloatValues(memberValueRanges[2].Values, memberValueRangesLength)
-	normalizedTermHours := normalizeFloatValues(memberValueRanges[3].Values, memberValueRangesLength)
-	normalizedGradYears := normalizeIntValues(memberValueRanges[4].Values, memberValueRangesLength)
-	normalizedClasses := normalizeStringValues(memberValueRanges[5].Values, memberValueRangesLength)
-	normalizedStrikes := normalizeIntValues(memberValueRanges[6].Values, memberValueRangesLength)
-	normalizedPersonalEmails := normalizeStringValues(memberValueRanges[7].Values, memberValueRangesLength)
-	normalizedSchoolEmails := normalizeStringValues(memberValueRanges[8].Values, memberValueRangesLength)
-	normalizedPhoneNumbers := normalizeStringValues(memberValueRanges[9].Values, memberValueRangesLength)
-	normalizedShirtSizes := normalizeStringValues(memberValueRanges[10].Values, memberValueRangesLength)
-	normalizedPaidDues := normalizeBoolValues(memberValueRanges[11].Values, memberValueRangesLength)
+	normalizedAllHours := normalizeFloatValues(memberValueRanges[1].Values, memberValueRangesLength)
+	normalizedTermHours := normalizeFloatValues(memberValueRanges[2].Values, memberValueRangesLength)
+	normalizedGradYears := normalizeIntValues(memberValueRanges[3].Values, memberValueRangesLength)
+	normalizedClasses := normalizeStringValues(memberValueRanges[4].Values, memberValueRangesLength)
+	normalizedStrikes := normalizeIntValues(memberValueRanges[5].Values, memberValueRangesLength)
+	normalizedPersonalEmails := normalizeStringValues(memberValueRanges[6].Values, memberValueRangesLength)
+	normalizedSchoolEmails := normalizeStringValues(memberValueRanges[7].Values, memberValueRangesLength)
+	normalizedPhoneNumbers := normalizeStringValues(memberValueRanges[8].Values, memberValueRangesLength)
+	normalizedShirtSizes := normalizeStringValues(memberValueRanges[9].Values, memberValueRangesLength)
+	normalizedPaidDues := normalizeBoolValues(memberValueRanges[10].Values, memberValueRangesLength)
 
 	for i := range memberValueRangesLength - 1 {
-		name := strings.Split(normalizedNames[i], ",") // names are stored as Last, First in the spreadsheet
+		name := NewName(normalizedNames[i])
 
 		formattedMemberArray[i] = Member{
-			Firstname:     strings.ToLower(strings.TrimSpace(name[1])),
-			Lastname:      strings.ToLower(strings.TrimSpace(name[0])),
-			Nickname:      strings.ToLower(normalizedNicknames[i]),
+			Firstname:  name.First,
+			Nickname:   name.Nick,
+			Middlename: name.Middle,
+			Lastname:   name.Last,
+
 			AllHours:      normalizedAllHours[i],
 			TermHours:     normalizedTermHours[i],
 			GradYear:      normalizedGradYears[i],
