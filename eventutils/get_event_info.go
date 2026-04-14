@@ -3,6 +3,7 @@ package eventutils
 import (
 	"fmt"
 	"math"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -27,7 +28,10 @@ func GetEventInfo(documentId string, docsService *docs.Service) (Event, []Member
 	address := getCellText(infoTable.TableRows[3].TableCells[1])
 	dateString := getCellText(infoTable.TableRows[1].TableCells[1])
 	timeString := getCellText(infoTable.TableRows[2].TableCells[1])
-	date, startTime, endTime := parseDateAndTime(dateString, timeString)
+	date, startTime, endTime, err := parseDateAndTime(dateString, timeString)
+	if err != nil {
+		return Event{}, []MemberAttendance{}, fmt.Errorf("error parsing event date/time: %w", err)
+	}
 
 	nOfSlots := 0
 	nOfVolunteers := 0
@@ -47,7 +51,9 @@ func GetEventInfo(documentId string, docsService *docs.Service) (Event, []Member
 				if err != nil {
 					return Event{}, []MemberAttendance{}, fmt.Errorf("error calculating hours for member %s: %w", name, err)
 				}
-				totalHours += hours
+				if hours != -1 {
+					totalHours += hours
+				}
 				memberAttendance = append(memberAttendance, MemberAttendance{
 					Name:  name,
 					Hours: hours,
@@ -73,8 +79,17 @@ func GetEventInfo(documentId string, docsService *docs.Service) (Event, []Member
 
 // calculates hours between start and end time
 func calculateHours(startTime string, endTime string) (float64, error) {
+	startTime = strings.TrimSpace(startTime)
+	endTime = strings.TrimSpace(endTime)
+	if startTime == "" && endTime == "" {
+		return -1, nil
+	}
+
 	start := strings.Split(startTime, ":")
 	end := strings.Split(endTime, ":")
+	if len(start) != 2 || len(end) != 2 {
+		return 0, fmt.Errorf("invalid time format (expected HH:MM): start=%q end=%q", startTime, endTime)
+	}
 
 	// ignoring error isn't ideal, but i'll fix this
 	startHourFloat, err := strconv.ParseFloat(start[0], 64)
@@ -126,22 +141,48 @@ func fetchTables(documentId string, docsService *docs.Service) ([]docs.Table, er
 }
 
 // parses date and start and end time strings into time.Time objects
-// ignoring errors isn't ideal but i'll fix this later...
-func parseDateAndTime(dateString string, timeString string) (string, string, string) {
-	date, _ := dateparse.ParseAny(dateString)
+func parseDateAndTime(dateString string, timeString string) (string, string, string, error) {
+	normalizedDateString := normalizeDateString(dateString)
+	date, err := dateparse.ParseAny(normalizedDateString)
+	if err != nil {
+		return "", "", "", fmt.Errorf("could not parse date %q (normalized: %q): %w", dateString, normalizedDateString, err)
+	}
 	dateFormatted := date.Format(time.DateOnly)
 
 	timeParts := strings.Split(timeString, "-")
 	if len(timeParts) != 2 {
 		timeParts = strings.Split(timeString, "to")
 	}
+	if len(timeParts) != 2 {
+		return "", "", "", fmt.Errorf("could not split time range %q", timeString)
+	}
 	// adding a date so dateparse can parse the time, then just take the date away
-	startTime, _ := dateparse.ParseAny(fmt.Sprintf("January 1, 2000 %v", timeParts[0]))
+	startTime, err := dateparse.ParseAny(fmt.Sprintf("January 1, 2000 %v", timeParts[0]))
+	if err != nil {
+		return "", "", "", fmt.Errorf("could not parse start time %q: %w", strings.TrimSpace(timeParts[0]), err)
+	}
 	startTimeFormatted := startTime.Format(time.TimeOnly)
-	endTime, _ := dateparse.ParseAny(fmt.Sprintf("January 1, 2000 %v", timeParts[1]))
+	endTime, err := dateparse.ParseAny(fmt.Sprintf("January 1, 2000 %v", timeParts[1]))
+	if err != nil {
+		return "", "", "", fmt.Errorf("could not parse end time %q: %w", strings.TrimSpace(timeParts[1]), err)
+	}
 	endTimeFormatted := endTime.Format(time.TimeOnly)
 
-	return dateFormatted, startTimeFormatted, endTimeFormatted
+	return dateFormatted, startTimeFormatted, endTimeFormatted, nil
+}
+
+var (
+	weekdayPrefixRegex = regexp.MustCompile(`(?i)^\s*(mon(day)?|tue(s(day)?)?|wed(nesday)?|thu(r(s(day)?)?)?|fri(day)?|sat(urday)?|sun(day)?)\s*,?\s*`)
+	ordinalRegex       = regexp.MustCompile(`(?i)(\d+)(st|nd|rd|th)\b`)
+)
+
+func normalizeDateString(dateString string) string {
+	s := strings.TrimSpace(dateString)
+	s = strings.ReplaceAll(s, ",", " ")
+	s = weekdayPrefixRegex.ReplaceAllString(s, "")
+	s = ordinalRegex.ReplaceAllString(s, "$1")
+	// collapse whitespace
+	return strings.Join(strings.Fields(s), " ")
 }
 
 // returns the text contents of a google docs table cell

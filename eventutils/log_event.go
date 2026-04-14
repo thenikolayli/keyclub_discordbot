@@ -90,7 +90,11 @@ func createUpdateValues(memberAttendance *[]MemberAttendance, event Event) ([]an
 			}
 			memberAttendanceName := memberutils.NewName((*memberAttendance)[memberIndex].Name)
 			if memberutils.SameName(memberAttendanceName, sheetName) {
-				updateValues[index] = (*memberAttendance)[memberIndex].Hours
+				if (*memberAttendance)[memberIndex].Hours != -1 {
+					updateValues[index] = (*memberAttendance)[memberIndex].Hours
+				} else {
+					updateValues[index] = nil
+				}
 				(*memberAttendance)[memberIndex].ColumnFound = true
 			} else {
 				updateValues[index] = nil
@@ -99,7 +103,7 @@ func createUpdateValues(memberAttendance *[]MemberAttendance, event Event) ([]an
 	}
 
 	for _, member := range *memberAttendance {
-		if member.ColumnFound {
+		if member.ColumnFound && member.Hours != -1 {
 			membersLogged = append(membersLogged, member)
 		} else {
 			membersNotLogged = append(membersNotLogged, member)
@@ -145,6 +149,10 @@ func writeHoursToCell(memberAttendance MemberAttendance) (*docs.DeleteContentRan
 func batchRequests(memberAttendance []MemberAttendance) []*docs.Request {
 	requests := []*docs.Request{}
 	for _, member := range memberAttendance {
+		// Treat -1 hours as "not logged" (leave blank in doc).
+		if member.Hours == -1 {
+			continue
+		}
 		deleteRequest, insertRequest := writeHoursToCell(member)
 		requests = append(requests, &docs.Request{
 			InsertText: insertRequest,

@@ -1,10 +1,10 @@
-# Key Club Discord Bot v2.0.1
+# Key Club Discord Bot v2.0.2
 
 This is t yeah i'll finish this later...
 
 ## The plan
 
-Here are some of the features I'd like to add.
+I want to also make it save the leaders per event, so I'll need to have it parse the leaders row in the info table and go off of that and add a new column in the 2026 Events sheet.
 
 ## _Member Functions_
 
@@ -14,7 +14,7 @@ Here are some of the features I'd like to add.
 - `/search` - [ ]
   - `start`, `end`, `slots open`, `leader slots`, `member slots`
   - Takes the values above and finds an event that matches every condition.
-- `/refresh` - [ ] MAYBE LATER... low priority.
+- `/refresh`
   - Refreshes the cache
 - `/termRanks`
   - `gradYear int`
@@ -35,7 +35,7 @@ Here are some of the features I'd like to add.
 
 ## _Officer Functions_
 
-- `/logEvent` - [ ]
+- `/logEvent`
   - `signUpUrl string`
   - Takes the sign up google doc url and logs the event.
 - `/getMonthData` - [ ]

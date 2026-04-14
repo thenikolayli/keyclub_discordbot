@@ -15,6 +15,7 @@ var Commands = []*discordgo.ApplicationCommand{
 	commands.TermRanksCommand,
 	commands.LogEventCommand,
 	commands.AddEventToCalendarCommand,
+	commands.RefreshCommand,
 }
 
 // passes a function to get role Ids so they are updated when the function is called so they're not empty upon package initialization
@@ -25,6 +26,7 @@ var CommandHandlers = map[string]func(*discordgo.Session, *discordgo.Interaction
 	"termranks":          commands.TermRanksHandler,
 	"logevent":           requireRole(func() []string { return []string{config.OfficerRoleId} }, commands.LogEventHandler),
 	"addeventtocalendar": requireRole(func() []string { return []string{config.OfficerRoleId, config.LeaderRoleId} }, commands.AddEventToCalendarHandler),
+	"refresh":            commands.RefreshHandler,
 }
 
 // checks if a member has a certain role
