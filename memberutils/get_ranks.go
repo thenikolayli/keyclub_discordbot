@@ -13,7 +13,7 @@ import (
 // returns ranks based on hours for a given grad year, sorted from highest to lowest
 func GetAllRanks(gradYear int, topN int, hoursUpdateTimeout float64, hoursLastUpdated *time.Time, sheetsService *sheets.Service, database *sqlx.DB) ([]Member, error) {
 	// attempts to update members if enough time has passed since the last update
-	UpdateMembers(hoursUpdateTimeout, hoursLastUpdated, sheetsService, database)
+	SyncMembersFromSheet(hoursUpdateTimeout, hoursLastUpdated, sheetsService, database)
 
 	ranks := []Member{}
 	err := database.SelectContext(
@@ -49,7 +49,7 @@ func GetAllRanks(gradYear int, topN int, hoursUpdateTimeout float64, hoursLastUp
 // returns ranks based on hours for a given grad year, sorted from highest to lowest
 func GetTermRanks(gradYear int, topN int, hoursUpdateTimeout float64, hoursLastUpdated *time.Time, sheetsService *sheets.Service, database *sqlx.DB) ([]Member, error) {
 	// attempts to update members if enough time has passed since the last update
-	UpdateMembers(hoursUpdateTimeout, hoursLastUpdated, sheetsService, database)
+	SyncMembersFromSheet(hoursUpdateTimeout, hoursLastUpdated, sheetsService, database)
 
 	ranks := []Member{}
 	err := database.SelectContext(

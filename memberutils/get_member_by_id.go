@@ -15,7 +15,7 @@ import (
 // if the hours haven't been updated in their specified timeout, it will update the hours before returning the member struct
 func GetMemberByDiscordId(discordId string, hoursUpdateTimeout float64, hoursLastUpdated *time.Time, sheetsService *sheets.Service, database *sqlx.DB) (Member, error) {
 	// attempts to update members if enough time has passed since the last update
-	UpdateMembers(hoursUpdateTimeout, hoursLastUpdated, sheetsService, database)
+	SyncMembersFromSheet(hoursUpdateTimeout, hoursLastUpdated, sheetsService, database)
 	var result Member
 
 	// match first_name to formattedName.Firstname first

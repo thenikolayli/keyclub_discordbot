@@ -15,7 +15,7 @@ var RefreshCommand = &discordgo.ApplicationCommand{
 }
 
 func RefreshHandler(session *discordgo.Session, interaction *discordgo.InteractionCreate) {
-	err := memberutils.UpdateMembers(config.HoursUpdateTimeout, &config.HoursLastUpdated, config.GoogleServices.Sheets, config.DB)
+	err := memberutils.SyncMembersFromSheet(config.HoursUpdateTimeout, &config.HoursLastUpdated, config.GoogleServices.Sheets, config.DB)
 	if err != nil {
 		// UpdateMembers uses an error to signal the "no-op" case (rate limiting).
 		if strings.HasPrefix(err.Error(), "Not enough time has passed") {
@@ -61,4 +61,3 @@ func RefreshHandler(session *discordgo.Session, interaction *discordgo.Interacti
 		},
 	})
 }
-

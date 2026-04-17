@@ -56,7 +56,8 @@ var (
 		NofSlots:      "2025-2026 Events!F1:F",
 		NofVolunteers: "2025-2026 Events!G1:G",
 		TotalHours:    "2025-2026 Events!H1:H",
-		Tags:          "2025-2026 Events!I1:I",
+		Leaders:       "2025-2026 Events!I1:I",
+		MadeBy:        "2025-2026 Events!J1:J",
 	}
 
 	// EventsSheetRanges
@@ -68,8 +69,10 @@ var (
 
 	DB *sqlx.DB
 
-	HoursUpdateTimeout float64   = 3600
-	HoursLastUpdated   time.Time = time.Date(2026, time.January, 1, 01, 01, 0, 0, time.UTC)
+	HoursUpdateTimeout  float64   = 60 * 60
+	EventsUpdateTimeout float64   = 60 * 5
+	HoursLastUpdated    time.Time = time.Date(2026, time.January, 1, 01, 01, 0, 0, time.UTC)
+	EventsLastUpdated   time.Time = time.Date(2026, time.January, 1, 01, 01, 0, 0, time.UTC)
 
 	DefaultRankTopN int = 5
 

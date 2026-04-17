@@ -3,10 +3,10 @@ package memberutils
 import (
 	"database/sql"
 	"fmt"
-	"strconv"
 	"time"
 
 	"keyclubDiscordBot/config"
+	"keyclubDiscordBot/genericutils"
 
 	"github.com/jmoiron/sqlx"
 	"google.golang.org/api/sheets/v4"
@@ -16,25 +16,20 @@ import (
 // fetches values via an api call to the hours spreadsheet
 // formats the response to member structs
 // updates the database based on structs
-func UpdateMembers(hoursUpdateTimeout float64, hoursLastUpdated *time.Time, sheetsService *sheets.Service, database *sqlx.DB) error {
+func SyncMembersFromSheet(hoursUpdateTimeout float64, hoursLastUpdated *time.Time, sheetsService *sheets.Service, database *sqlx.DB) error {
 	timeSince := time.Since(*hoursLastUpdated).Seconds()
 	if timeSince < hoursUpdateTimeout {
 		return fmt.Errorf("Not enough time has passed since the last update, wait %v more seconds.", hoursUpdateTimeout-timeSince)
 	}
 
-	// prevTime := time.Now()
 	memberValueRanges, err := getMemberValueRanges(sheetsService)
 	if err != nil {
 		return fmt.Errorf("Failed to update members: %v", err)
 	}
-	// fmt.Printf("Time for API call: %v\n", time.Since(prevTime))
 
-	// prevTime = time.Now()
 	formattedMemberStructs := getMemberStructs(memberValueRanges)
-	// fmt.Printf("Time to format: %v\n", time.Since(prevTime))
 
 	// check if it exists first, if yes, update, if no, add it
-	// prevTime = time.Now()
 	transaction, err := database.BeginTxx(config.Context, nil)
 	if err != nil {
 		return fmt.Errorf("Failed to create a transaction: %v", err)
@@ -46,7 +41,6 @@ func UpdateMembers(hoursUpdateTimeout float64, hoursLastUpdated *time.Time, shee
 		}
 	}
 	transaction.Commit()
-	// fmt.Printf("Time to run DB queries: %v\n", time.Since(prevTime))
 
 	*hoursLastUpdated = time.Now()
 	return nil
@@ -117,27 +111,26 @@ func getMemberStructs(memberValueRanges []*sheets.ValueRange) []Member {
 	memberValueRangesLength := len(memberValueRanges[0].Values)
 	formattedMemberArray := make([]Member, memberValueRangesLength)
 
-	normalizedNames := normalizeStringValues(memberValueRanges[0].Values, memberValueRangesLength)
-	normalizedAllHours := normalizeFloatValues(memberValueRanges[1].Values, memberValueRangesLength)
-	normalizedTermHours := normalizeFloatValues(memberValueRanges[2].Values, memberValueRangesLength)
-	normalizedGradYears := normalizeIntValues(memberValueRanges[3].Values, memberValueRangesLength)
-	normalizedClasses := normalizeStringValues(memberValueRanges[4].Values, memberValueRangesLength)
-	normalizedStrikes := normalizeIntValues(memberValueRanges[5].Values, memberValueRangesLength)
-	normalizedPersonalEmails := normalizeStringValues(memberValueRanges[6].Values, memberValueRangesLength)
-	normalizedSchoolEmails := normalizeStringValues(memberValueRanges[7].Values, memberValueRangesLength)
-	normalizedPhoneNumbers := normalizeStringValues(memberValueRanges[8].Values, memberValueRangesLength)
-	normalizedShirtSizes := normalizeStringValues(memberValueRanges[9].Values, memberValueRangesLength)
-	normalizedPaidDues := normalizeBoolValues(memberValueRanges[10].Values, memberValueRangesLength)
+	normalizedNames := genericutils.NormalizeStringValues(memberValueRanges[0].Values, memberValueRangesLength)
+	normalizedAllHours := genericutils.NormalizeFloatValues(memberValueRanges[1].Values, memberValueRangesLength)
+	normalizedTermHours := genericutils.NormalizeFloatValues(memberValueRanges[2].Values, memberValueRangesLength)
+	normalizedGradYears := genericutils.NormalizeIntValues(memberValueRanges[3].Values, memberValueRangesLength)
+	normalizedClasses := genericutils.NormalizeStringValues(memberValueRanges[4].Values, memberValueRangesLength)
+	normalizedStrikes := genericutils.NormalizeIntValues(memberValueRanges[5].Values, memberValueRangesLength)
+	normalizedPersonalEmails := genericutils.NormalizeStringValues(memberValueRanges[6].Values, memberValueRangesLength)
+	normalizedSchoolEmails := genericutils.NormalizeStringValues(memberValueRanges[7].Values, memberValueRangesLength)
+	normalizedPhoneNumbers := genericutils.NormalizeStringValues(memberValueRanges[8].Values, memberValueRangesLength)
+	normalizedShirtSizes := genericutils.NormalizeStringValues(memberValueRanges[9].Values, memberValueRangesLength)
+	normalizedPaidDues := genericutils.NormalizeBoolValues(memberValueRanges[10].Values, memberValueRangesLength)
 
 	for i := range memberValueRangesLength - 1 {
 		name := NewName(normalizedNames[i])
 
 		formattedMemberArray[i] = Member{
-			Firstname:  name.First,
-			Nickname:   name.Nick,
-			Middlename: name.Middle,
-			Lastname:   name.Last,
-
+			Firstname:     name.First,
+			Nickname:      name.Nick,
+			Middlename:    name.Middle,
+			Lastname:      name.Last,
 			AllHours:      normalizedAllHours[i],
 			TermHours:     normalizedTermHours[i],
 			GradYear:      normalizedGradYears[i],
@@ -153,62 +146,4 @@ func getMemberStructs(memberValueRanges []*sheets.ValueRange) []Member {
 	}
 
 	return formattedMemberArray
-}
-
-// the following functions create normalized lists with blanks from the originals
-func normalizeStringValues(values [][]any, length int) []string {
-	normalizedStringValues := make([]string, length)
-
-	for i := range values {
-		if len(values[i]) != 0 { // if the cell isn't blank
-			normalizedStringValues[i] = values[i][0].(string)
-		}
-	}
-
-	return normalizedStringValues
-}
-
-func normalizeFloatValues(values [][]any, length int) []float64 {
-	normalizedStringValues := make([]float64, length)
-
-	for i := range values {
-		if len(values[i]) != 0 { // if the cell isn't blank
-			value, err := strconv.ParseFloat(values[i][0].(string), 64)
-			if err == nil {
-				normalizedStringValues[i] = value
-			}
-		}
-	}
-
-	return normalizedStringValues
-}
-
-func normalizeIntValues(values [][]any, length int) []int {
-	normalizedStringValues := make([]int, length)
-
-	for i := range values {
-		if len(values[i]) != 0 { // if the cell isn't blank
-			value, err := strconv.ParseInt(values[i][0].(string), 0, 64)
-			if err == nil {
-				normalizedStringValues[i] = int(value)
-			}
-		}
-	}
-
-	return normalizedStringValues
-}
-
-func normalizeBoolValues(values [][]any, length int) []bool {
-	normalizedStringValues := make([]bool, length)
-
-	for i := range values {
-		if len(values[i]) != 0 { // if the cell isn't blank
-			value, err := strconv.ParseBool(values[i][0].(string))
-			if err == nil {
-				normalizedStringValues[i] = bool(value)
-			}
-		}
-	}
-
-	return normalizedStringValues
 }

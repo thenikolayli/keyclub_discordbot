@@ -34,7 +34,8 @@ type EventsSheetRangesType struct {
 	NofSlots      string
 	NofVolunteers string
 	TotalHours    string
-	Tags          string
+	Leaders       string
+	MadeBy        string
 }
 
 // information about the eventsmembers sheet ranges

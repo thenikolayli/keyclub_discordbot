@@ -47,6 +47,8 @@ func LogEvent(documentId string) (LogEventResponse, error) {
 		event.NofSlots,
 		event.NofVolunteers,
 		event.TotalHours,
+		event.Leaders,
+		event.MadeBy,
 	}
 
 	_, err = config.GoogleServices.Sheets.Spreadsheets.Values.BatchUpdate(
@@ -59,7 +61,7 @@ func LogEvent(documentId string) (LogEventResponse, error) {
 					Values: [][]any{eventsMembersUpdateValues},
 				},
 				{ // goes to H because tags aren't logged (they have to be added manually)
-					Range:  fmt.Sprintf("%s!A%v:H%v", config.EventsSheetRanges.SheetName, emptyRowEvents, emptyRowEvents),
+					Range:  fmt.Sprintf("%s!A%v:J%v", config.EventsSheetRanges.SheetName, emptyRowEvents, emptyRowEvents),
 					Values: [][]any{eventsUpdateValues},
 				},
 			},

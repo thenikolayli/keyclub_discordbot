@@ -13,7 +13,9 @@ type Event struct {
 	NofSlots      int     `db:"n_of_slots"`
 	NofVolunteers int     `db:"n_of_volunteers"`
 	TotalHours    float64 `db:"total_hours"`
-	Tags          string  `db:"tags"`
+	Leaders       string  `db:"leaders"`
+	MadeBy        string  `db:"made_by"`
+	SignUpUrl     string  `db:"sign_up_url"`
 }
 
 // struct to represent the intermediary table for many-to-many relationship between events and members

@@ -24,10 +24,31 @@ func GetEventInfo(documentId string, docsService *docs.Service) (Event, []Member
 	infoTable := tables[0]
 	attendanceTables := tables[1:]
 
-	name := getCellText(infoTable.TableRows[0].TableCells[1])
-	address := getCellText(infoTable.TableRows[3].TableCells[1])
-	dateString := getCellText(infoTable.TableRows[1].TableCells[1])
-	timeString := getCellText(infoTable.TableRows[2].TableCells[1])
+	name := ""
+	address := ""
+	dateString := ""
+	timeString := ""
+	madeBy := ""
+	leaders := ""
+
+	for _, row := range infoTable.TableRows {
+		header := getCellText(row.TableCells[0])
+		value := getCellText(row.TableCells[1])
+		switch header {
+		case "Event Name:":
+			name = value
+		case "Address:":
+			address = value
+		case "Leaders:":
+			leaders = value
+		case "Made By:":
+			madeBy = value
+		case "Date:":
+			dateString = value
+		case "Time:":
+			timeString = value
+		}
+	}
 	date, startTime, endTime, err := parseDateAndTime(dateString, timeString)
 	if err != nil {
 		return Event{}, []MemberAttendance{}, fmt.Errorf("error parsing event date/time: %w", err)
@@ -74,6 +95,8 @@ func GetEventInfo(documentId string, docsService *docs.Service) (Event, []Member
 		NofSlots:      nOfSlots,
 		NofVolunteers: nOfVolunteers,
 		TotalHours:    totalHours,
+		Leaders:       leaders,
+		MadeBy:        madeBy,
 	}, memberAttendance, nil
 }
 
