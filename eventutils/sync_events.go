@@ -1,68 +1,136 @@
 package eventutils
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
+	"sync"
 	"time"
 
-	"keyclubDiscordBot/config"
 	"keyclubDiscordBot/genericutils"
+	"keyclubDiscordBot/internal"
 
 	"github.com/jmoiron/sqlx"
+	"google.golang.org/api/calendar/v3"
 	"google.golang.org/api/sheets/v4"
 )
 
-func SyncEvents(nSlots int, eventsUpdateTimeout float64, eventsLastUpdated *time.Time, sheetsService *sheets.Service, database *sqlx.DB) error {
-	return syncEventsFromSheet(eventsUpdateTimeout, eventsLastUpdated, sheetsService, database)
+func SyncEvents(ctx context.Context, app *internal.App) error {
+	if !app.EventSync.ShouldSync() {
+		remaining := app.EventSync.UpdateTimeout - time.Since(app.EventSync.LastUpdated)
+		return fmt.Errorf("Not enough time has passed since the last update, wait %v more seconds.", remaining.Seconds())
+	}
+	app.EventSync.Mutex.Lock()
+	defer app.EventSync.Mutex.Unlock()
+
+	if err := syncEventsFromCalendar(ctx, app); err != nil {
+		return err
+	}
+	if err := syncEventsFromSheet(ctx, app); err != nil {
+		return err
+	}
+	app.EventSync.LastUpdated = time.Now()
+	return nil
+}
+
+func syncEventsFromCalendar(ctx context.Context, app *internal.App) error {
+	calendarEvents, err := app.GoogleServices.Calendar.Events.List(app.Config.CalendarID).TimeMin(time.Now().Format(time.RFC3339)).TimeMax(time.Now().AddDate(0, 1, 0).Format(time.RFC3339)).Context(ctx).Do()
+	if err != nil {
+		return fmt.Errorf("Failed to get events from calendar: %w", err)
+	}
+
+	transaction, err := app.DB.BeginTxx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("Failed to create a transaction: %w", err)
+	}
+	committed := false
+	defer func() {
+		if !committed {
+			transaction.Rollback()
+		}
+	}()
+
+	var wg sync.WaitGroup
+	var upsertMutex sync.Mutex
+	var workErr error
+
+	for _, calEvent := range calendarEvents.Items {
+		if len(calEvent.Attachments) == 0 {
+			continue
+		}
+		wg.Add(1)
+		go func(ev *calendar.Event) {
+			defer wg.Done()
+			formattedEvent, _, err := GetEventInfo(ctx, DocsUrlToId(ev.Attachments[0].FileUrl), app.GoogleServices.Docs)
+			if err != nil {
+				fmt.Printf("Failed to get event info for event %s: %v\n", ev.Summary, err)
+				return
+			}
+			upsertMutex.Lock()
+			defer upsertMutex.Unlock()
+			if workErr != nil {
+				return
+			}
+			if err := upsertEvent(ctx, formattedEvent, transaction); err != nil {
+				workErr = err
+			}
+		}(calEvent)
+	}
+	wg.Wait()
+	if workErr != nil {
+		return workErr
+	}
+	if err := transaction.Commit(); err != nil {
+		return fmt.Errorf("Failed to commit transaction: %w", err)
+	}
+	committed = true
+	return nil
 }
 
 // syncs the events database entries from the events spreadsheet
 // fetches values via an api call to the events spreadsheet
 // formats the response to event structs
 // updates the database based on structs
-func syncEventsFromSheet(eventsUpdateTimeout float64, eventsLastUpdated *time.Time, sheetsService *sheets.Service, database *sqlx.DB) error {
-	timeSince := time.Since(*eventsLastUpdated).Seconds()
-	if timeSince < eventsUpdateTimeout {
-		return fmt.Errorf("Not enough time has passed since the last update, wait %v more seconds.", eventsUpdateTimeout-timeSince)
-	}
-
-	eventValueRanges, err := getEventValueRanges(sheetsService)
+func syncEventsFromSheet(ctx context.Context, app *internal.App) error {
+	eventValueRanges, err := getEventValueRanges(ctx, app)
 	if err != nil {
-		return fmt.Errorf("Failed to update events: %v", err)
+		return fmt.Errorf("Failed to update events: %w", err)
 	}
-
 	formattedEventStructs := getEventStructs(eventValueRanges)
 
-	transaction, err := database.BeginTxx(config.Context, nil)
+	transaction, err := app.DB.BeginTxx(ctx, nil)
 	if err != nil {
-		return fmt.Errorf("Failed to create a transaction: %v", err)
+		return fmt.Errorf("Failed to create a transaction: %w", err)
 	}
 	for _, each := range formattedEventStructs {
-		err := upsertEvent(each, transaction)
+		err := upsertEvent(ctx, each, transaction)
 		if err != nil {
 			return err
 		}
 	}
-	transaction.Commit()
+	if err := transaction.Commit(); err != nil {
+		return fmt.Errorf("Failed to commit transaction: %w", err)
+	}
 
-	*eventsLastUpdated = time.Now()
+	app.EventSync.LastUpdated = time.Now()
 	return nil
 }
 
 // fetches and returns google sheets api value ranges (unformatted)
-func getEventValueRanges(sheetsService *sheets.Service) ([]*sheets.ValueRange, error) {
-	data, err := sheetsService.Spreadsheets.Values.BatchGet(config.SpreadsheetID).Ranges(
-		config.EventsSheetRanges.Events,
-		config.EventsSheetRanges.Dates,
-		config.EventsSheetRanges.StartTimes,
-		config.EventsSheetRanges.EndTimes,
-		config.EventsSheetRanges.Addresses,
-		config.EventsSheetRanges.NofSlots,
-		config.EventsSheetRanges.NofVolunteers,
-		config.EventsSheetRanges.TotalHours,
-		config.EventsSheetRanges.Leaders,
-		config.EventsSheetRanges.MadeBy,
-	).Do()
+func getEventValueRanges(ctx context.Context, app *internal.App) ([]*sheets.ValueRange, error) {
+	r := app.Config.EventsSheetRanges
+	data, err := app.GoogleServices.Sheets.Spreadsheets.Values.BatchGet(app.Config.SpreadsheetID).Ranges(
+		r.Events,
+		r.Dates,
+		r.StartTimes,
+		r.EndTimes,
+		r.Addresses,
+		r.NofSlots,
+		r.NofVolunteers,
+		r.TotalHours,
+		r.Leaders,
+		r.MadeBy,
+	).Context(ctx).Do()
 	if err != nil {
 		return nil, fmt.Errorf("Failed to batch get spreadsheet ranges: %v", err)
 	}
@@ -86,7 +154,7 @@ func getEventStructs(eventValueRanges []*sheets.ValueRange) []Event {
 	normalizedLeaders := genericutils.NormalizeStringValues(eventValueRanges[8].Values, eventValueRangesLength)
 	normalizedMadeBy := genericutils.NormalizeStringValues(eventValueRanges[9].Values, eventValueRangesLength)
 
-	for i := range eventValueRangesLength - 1 {
+	for i := range eventValueRangesLength {
 		formattedEventArray[i] = Event{
 			Name:          normalizedEvents[i],
 			Date:          normalizedDates[i],
@@ -110,19 +178,19 @@ func getEventStructs(eventValueRanges []*sheets.ValueRange) []Event {
 // checks if an event with the same name exists
 // if it doesn't, insert it
 // otherwise, update
-func upsertEvent(event Event, transaction *sqlx.Tx) error {
+func upsertEvent(ctx context.Context, event Event, transaction *sqlx.Tx) error {
 	result := Event{}
 	err := transaction.GetContext(
-		config.Context, &result,
+		ctx, &result,
 		"SELECT * from events WHERE name = ? LIMIT 1",
 		event.Name,
 	)
 	if err == sql.ErrNoRows {
 		_, insertErr := transaction.NamedExec(`
 			INSERT INTO events
-			(name, date, start_time, end_time, address, n_of_slots, n_of_volunteers, total_hours, leaders, made_by)
+			(name, date, start_time, end_time, address, n_of_slots, n_of_volunteers, total_hours, leaders, made_by, sign_up_url)
 			VALUES
-			(:name, :date, :start_time, :end_time, :address, :n_of_slots, :n_of_volunteers, :total_hours, :leaders, :made_by)`,
+			(:name, :date, :start_time, :end_time, :address, :n_of_slots, :n_of_volunteers, :total_hours, :leaders, :made_by, :sign_up_url)`,
 			event,
 		)
 		if insertErr != nil {
@@ -134,7 +202,7 @@ func upsertEvent(event Event, transaction *sqlx.Tx) error {
 		event.ID = result.ID // to update the correct row based on primary key (id)
 		_, updateErr := transaction.NamedExec(`
 			UPDATE events SET 
-			name=:name, date=:date, start_time=:start_time, end_time=:end_time, address=:address, n_of_slots=:n_of_slots, n_of_volunteers=:n_of_volunteers, total_hours=:total_hours, leaders=:leaders, made_by=:made_by
+			name=:name, date=:date, start_time=:start_time, end_time=:end_time, address=:address, n_of_slots=:n_of_slots, n_of_volunteers=:n_of_volunteers, total_hours=:total_hours, leaders=:leaders, made_by=:made_by, sign_up_url=:sign_up_url
 			WHERE id=:id
 		`, event)
 		if updateErr != nil {

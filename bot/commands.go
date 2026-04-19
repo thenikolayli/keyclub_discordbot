@@ -1,12 +1,16 @@
 package bot
 
 import (
+	"context"
 	"keyclubDiscordBot/bot/commands"
-	"keyclubDiscordBot/config"
+	"keyclubDiscordBot/internal"
 	"slices"
 
 	"github.com/bwmarrin/discordgo"
 )
+
+// CommandHandler runs one slash command. ctx is cancelled on shutdown or DiscordCommandTimeout.
+type CommandHandler func(ctx context.Context, session *discordgo.Session, interaction *discordgo.InteractionCreate)
 
 var Commands = []*discordgo.ApplicationCommand{
 	commands.HoursCommand,
@@ -16,17 +20,21 @@ var Commands = []*discordgo.ApplicationCommand{
 	commands.LogEventCommand,
 	commands.AddEventToCalendarCommand,
 	commands.RefreshCommand,
+	commands.SearchCommand,
 }
 
 // passes a function to get role Ids so they are updated when the function is called so they're not empty upon package initialization
-var CommandHandlers = map[string]func(*discordgo.Session, *discordgo.InteractionCreate){
-	"hours":              commands.HoursHandler,
-	"member":             requireRole(func() []string { return []string{config.OfficerRoleId, config.LeaderRoleId} }, commands.MemberLookupHandler),
-	"allranks":           commands.AllRanksHandler,
-	"termranks":          commands.TermRanksHandler,
-	"logevent":           requireRole(func() []string { return []string{config.OfficerRoleId} }, commands.LogEventHandler),
-	"addeventtocalendar": requireRole(func() []string { return []string{config.OfficerRoleId, config.LeaderRoleId} }, commands.AddEventToCalendarHandler),
-	"refresh":            commands.RefreshHandler,
+func BuildCommandHandlers(app *internal.App) map[string]CommandHandler {
+	return map[string]CommandHandler{
+		"hours":              commands.HoursHandler(app),
+		"member":             requireRole(func() []string { return []string{app.Config.OfficerRoleID, app.Config.LeaderRoleID} }, commands.MemberLookupHandler(app)),
+		"allranks":           commands.AllRanksHandler(app),
+		"termranks":          commands.TermRanksHandler(app),
+		"logevent":           requireRole(func() []string { return []string{app.Config.OfficerRoleID} }, commands.LogEventHandler(app)),
+		"addeventtocalendar": requireRole(func() []string { return []string{app.Config.OfficerRoleID, app.Config.LeaderRoleID} }, commands.AddEventToCalendarHandler(app)),
+		"refresh":            commands.RefreshHandler(app),
+		"search":             commands.SearchHandler(app),
+	}
 }
 
 // checks if a member has a certain role
@@ -42,8 +50,8 @@ func hasRole(member *discordgo.Member, requiredRoles []string) bool {
 
 // requires a user to have a certain role otherwise it will respond with an error message and not execute the command
 // wrapper function that returns a command handler if the user has the required role, otherwise responds with an error message
-func requireRole(getRequiredRoles func() []string, next func(*discordgo.Session, *discordgo.InteractionCreate)) func(*discordgo.Session, *discordgo.InteractionCreate) {
-	return func(session *discordgo.Session, interaction *discordgo.InteractionCreate) {
+func requireRole(getRequiredRoles func() []string, next CommandHandler) CommandHandler {
+	return func(ctx context.Context, session *discordgo.Session, interaction *discordgo.InteractionCreate) {
 		requiredRoles := getRequiredRoles()
 		if interaction.Member == nil || !hasRole(interaction.Member, requiredRoles) {
 			session.InteractionRespond(interaction.Interaction, &discordgo.InteractionResponse{
@@ -63,6 +71,6 @@ func requireRole(getRequiredRoles func() []string, next func(*discordgo.Session,
 			})
 			return
 		}
-		next(session, interaction)
+		next(ctx, session, interaction)
 	}
 }

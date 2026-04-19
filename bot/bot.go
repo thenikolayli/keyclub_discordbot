@@ -1,27 +1,28 @@
 package bot
 
 import (
+	"keyclubDiscordBot/internal"
 	"log"
 
 	"github.com/bwmarrin/discordgo"
 )
 
 type Bot struct {
-	Session        *discordgo.Session
-	GuildID        string
-	registeredCmds []*discordgo.ApplicationCommand
+	Session *discordgo.Session
+	GuildID string
+	App     *internal.App
 }
 
-func New(token, guildID string) (*Bot, error) {
-	session, err := discordgo.New("Bot " + token)
+func New(app *internal.App) (*Bot, error) {
+	session, err := discordgo.New("Bot " + app.Config.DiscordToken)
 	if err != nil {
 		return nil, err
 	}
-	return &Bot{Session: session, GuildID: guildID}, nil
+	return &Bot{Session: session, GuildID: app.Config.GuildID, App: app}, nil
 }
 
 func (bot *Bot) Start() error {
-	bot.Session.AddHandler(Router)
+	bot.Session.AddHandler(bot.router())
 	bot.Session.AddHandler(func(session *discordgo.Session, ready *discordgo.Ready) {
 		log.Printf("Logged in as %s", session.State.User.Username)
 	})
@@ -30,20 +31,14 @@ func (bot *Bot) Start() error {
 		return err
 	}
 
-	for _, command := range Commands {
-		registered, err := bot.Session.ApplicationCommandCreate(bot.Session.State.User.ID, bot.GuildID, command)
-		if err != nil {
-			bot.Session.Close()
-			return err
-		}
-		bot.registeredCmds = append(bot.registeredCmds, registered)
+	_, err := bot.Session.ApplicationCommandBulkOverwrite(bot.Session.State.User.ID, bot.GuildID, Commands)
+	if err != nil {
+		return err
 	}
+
 	return nil
 }
 
 func (bot *Bot) Stop() {
-	for _, cmd := range bot.registeredCmds {
-		bot.Session.ApplicationCommandDelete(bot.Session.State.User.ID, bot.GuildID, cmd.ID)
-	}
 	bot.Session.Close()
 }

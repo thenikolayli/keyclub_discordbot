@@ -1,23 +1,18 @@
 package memberutils
 
 import (
+	"context"
 	"fmt"
-	"keyclubDiscordBot/config"
+	"keyclubDiscordBot/internal"
 	"slices"
-	"time"
-
-	"github.com/jmoiron/sqlx"
-	"google.golang.org/api/sheets/v4"
 )
 
 // returns ranks based on hours for a given grad year, sorted from highest to lowest
-func GetAllRanks(gradYear int, topN int, hoursUpdateTimeout float64, hoursLastUpdated *time.Time, sheetsService *sheets.Service, database *sqlx.DB) ([]Member, error) {
-	// attempts to update members if enough time has passed since the last update
-	SyncMembersFromSheet(hoursUpdateTimeout, hoursLastUpdated, sheetsService, database)
-
+func GetAllRanks(ctx context.Context, app *internal.App, gradYear int, topN int) ([]Member, error) {
+	SyncMembersFromSheet(ctx, app)
 	ranks := []Member{}
-	err := database.SelectContext(
-		config.Context, &ranks,
+	err := app.DB.SelectContext(
+		ctx, &ranks,
 		"SELECT * FROM members WHERE grad_year = ? ORDER BY all_hours DESC",
 		gradYear,
 	)
@@ -30,14 +25,14 @@ func GetAllRanks(gradYear int, topN int, hoursUpdateTimeout float64, hoursLastUp
 	if topN != -1 {
 		currentIndex := 0
 		for len(topNRanks) < topN {
-			if !slices.Contains(config.Officers, fmt.Sprintf("%s %s", ranks[currentIndex].Firstname, ranks[currentIndex].Lastname)) {
+			if !slices.Contains(app.Config.Officers, fmt.Sprintf("%s %s", ranks[currentIndex].Firstname, ranks[currentIndex].Lastname)) {
 				topNRanks = append(topNRanks, ranks[currentIndex])
 			}
 			currentIndex++
 		}
 	} else {
 		for _, rank := range ranks {
-			if !slices.Contains(config.Officers, fmt.Sprintf("%s %s", rank.Firstname, rank.Lastname)) {
+			if !slices.Contains(app.Config.Officers, fmt.Sprintf("%s %s", rank.Firstname, rank.Lastname)) {
 				topNRanks = append(topNRanks, rank)
 			}
 		}
@@ -47,13 +42,11 @@ func GetAllRanks(gradYear int, topN int, hoursUpdateTimeout float64, hoursLastUp
 }
 
 // returns ranks based on hours for a given grad year, sorted from highest to lowest
-func GetTermRanks(gradYear int, topN int, hoursUpdateTimeout float64, hoursLastUpdated *time.Time, sheetsService *sheets.Service, database *sqlx.DB) ([]Member, error) {
-	// attempts to update members if enough time has passed since the last update
-	SyncMembersFromSheet(hoursUpdateTimeout, hoursLastUpdated, sheetsService, database)
-
+func GetTermRanks(ctx context.Context, app *internal.App, gradYear int, topN int) ([]Member, error) {
+	SyncMembersFromSheet(ctx, app)
 	ranks := []Member{}
-	err := database.SelectContext(
-		config.Context, &ranks,
+	err := app.DB.SelectContext(
+		ctx, &ranks,
 		"SELECT * FROM members WHERE grad_year = ? ORDER BY term_hours DESC",
 		gradYear,
 	)
@@ -65,14 +58,14 @@ func GetTermRanks(gradYear int, topN int, hoursUpdateTimeout float64, hoursLastU
 	if topN != -1 {
 		currentIndex := 0
 		for len(topNRanks) < topN {
-			if !slices.Contains(config.Officers, fmt.Sprintf("%s %s", ranks[currentIndex].Firstname, ranks[currentIndex].Lastname)) {
+			if !slices.Contains(app.Config.Officers, fmt.Sprintf("%s %s", ranks[currentIndex].Firstname, ranks[currentIndex].Lastname)) {
 				topNRanks = append(topNRanks, ranks[currentIndex])
 			}
 			currentIndex++
 		}
 	} else {
 		for _, rank := range ranks {
-			if !slices.Contains(config.Officers, fmt.Sprintf("%s %s", rank.Firstname, rank.Lastname)) {
+			if !slices.Contains(app.Config.Officers, fmt.Sprintf("%s %s", rank.Firstname, rank.Lastname)) {
 				topNRanks = append(topNRanks, rank)
 			}
 		}

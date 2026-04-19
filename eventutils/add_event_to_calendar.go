@@ -1,17 +1,18 @@
 package eventutils
 
 import (
+	"context"
 	"fmt"
 	"regexp"
 
-	"keyclubDiscordBot/config"
+	"keyclubDiscordBot/internal"
 
 	"google.golang.org/api/calendar/v3"
 )
 
 // Takes an attendance document ID and adds the event to the calendar, returning the link to the calendar event
-func AddEventToCalendar(documentId string) (calendar.Event, error) {
-	event, _, err := GetEventInfo(documentId, config.GoogleServices.Docs)
+func AddEventToCalendar(ctx context.Context, app *internal.App, documentId string) (calendar.Event, error) {
+	event, _, err := GetEventInfo(ctx, documentId, app.GoogleServices.Docs)
 	if err != nil {
 		return calendar.Event{}, fmt.Errorf("Issue extracting event info while adding event to calendar: %w", err)
 	}
@@ -39,19 +40,19 @@ func AddEventToCalendar(documentId string) (calendar.Event, error) {
 		},
 	}
 
-	if alreadyExists(calendarEvent) {
+	if alreadyExists(ctx, app, calendarEvent) {
 		return calendar.Event{}, fmt.Errorf("Event already exists in calendar")
 	}
 
-	result, err := config.GoogleServices.Calendar.Events.Insert(config.CalendarID, calendarEvent).SupportsAttachments(true).Do()
+	result, err := app.GoogleServices.Calendar.Events.Insert(app.Config.CalendarID, calendarEvent).Context(ctx).SupportsAttachments(true).Do()
 	if err != nil {
 		return calendar.Event{}, fmt.Errorf("Issue inserting event into calendar: %w", err)
 	}
 	return *result, nil
 }
 
-func alreadyExists(event *calendar.Event) bool {
-	result, err := config.GoogleServices.Calendar.Events.List(config.CalendarID).TimeMin(event.Start.DateTime).TimeMax(event.End.DateTime).Do()
+func alreadyExists(ctx context.Context, app *internal.App, event *calendar.Event) bool {
+	result, err := app.GoogleServices.Calendar.Events.List(app.Config.CalendarID).TimeMin(event.Start.DateTime).TimeMax(event.End.DateTime).Context(ctx).Do()
 	if err != nil {
 		fmt.Printf("Issue checking if event already exists: %v\n", err)
 	}

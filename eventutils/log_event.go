@@ -1,11 +1,12 @@
 package eventutils
 
 import (
+	"context"
 	"fmt"
 	"slices"
 	"strconv"
 
-	"keyclubDiscordBot/config"
+	"keyclubDiscordBot/internal"
 	"keyclubDiscordBot/memberutils"
 
 	"google.golang.org/api/docs/v1"
@@ -13,28 +14,28 @@ import (
 )
 
 // Takes an attendance document ID and fills calculated hours and logs event to the sheets, returning the event info and which members were logged vs not logged
-func LogEvent(documentId string) (LogEventResponse, error) {
-	event, memberAttendance, err := GetEventInfo(documentId, config.GoogleServices.Docs)
+func LogEvent(ctx context.Context, app *internal.App, documentId string) (LogEventResponse, error) {
+	event, memberAttendance, err := GetEventInfo(ctx, documentId, app.GoogleServices.Docs)
 	if err != nil {
 		return LogEventResponse{}, fmt.Errorf("Issue extracting event info while logging event: %w", err)
 	}
 	requests := batchRequests(memberAttendance)
-	_, err = config.GoogleServices.Docs.Documents.BatchUpdate(documentId, &docs.BatchUpdateDocumentRequest{
+	_, err = app.GoogleServices.Docs.Documents.BatchUpdate(documentId, &docs.BatchUpdateDocumentRequest{
 		Requests: requests,
-	}).Do()
+	}).Context(ctx).Do()
 	if err != nil {
 		return LogEventResponse{}, fmt.Errorf("Issue updating document while logging event: %w", err)
 	}
 
-	emptyRowEventsMembers, err := findNextEmptyRowNoDupes(config.EventsMembersSheetRanges.Events, event.Name)
+	emptyRowEventsMembers, err := findNextEmptyRowNoDupes(ctx, app, app.Config.EventsMembersSheetRanges.Events, event.Name)
 	if err != nil {
 		return LogEventResponse{}, fmt.Errorf("Issue finding next empty row while logging event: %w", err)
 	}
-	eventsMembersUpdateValues, logEventResponse, err := createUpdateValues(&memberAttendance, event)
+	eventsMembersUpdateValues, logEventResponse, err := createUpdateValues(ctx, app, &memberAttendance, event)
 	if err != nil {
 		return LogEventResponse{}, fmt.Errorf("Issue creating update values while logging event: %w", err)
 	}
-	emptyRowEvents, err := findNextEmptyRowNoDupes(config.EventsSheetRanges.Events, event.Name)
+	emptyRowEvents, err := findNextEmptyRowNoDupes(ctx, app, app.Config.EventsSheetRanges.Events, event.Name)
 	if err != nil {
 		return LogEventResponse{}, fmt.Errorf("Issue finding next empty row while logging event: %w", err)
 	}
@@ -51,22 +52,22 @@ func LogEvent(documentId string) (LogEventResponse, error) {
 		event.MadeBy,
 	}
 
-	_, err = config.GoogleServices.Sheets.Spreadsheets.Values.BatchUpdate(
-		config.SpreadsheetID,
+	_, err = app.GoogleServices.Sheets.Spreadsheets.Values.BatchUpdate(
+		app.Config.SpreadsheetID,
 		&sheets.BatchUpdateValuesRequest{
 			ValueInputOption: "USER_ENTERED",
 			Data: []*sheets.ValueRange{
 				{
-					Range:  fmt.Sprintf("%s!A%v:%s%v", config.EventsMembersSheetRanges.SheetName, emptyRowEventsMembers, indexToCol(len(eventsMembersUpdateValues)), emptyRowEventsMembers),
+					Range:  fmt.Sprintf("%s!A%v:%s%v", app.Config.EventsMembersSheetRanges.SheetName, emptyRowEventsMembers, indexToCol(len(eventsMembersUpdateValues)), emptyRowEventsMembers),
 					Values: [][]any{eventsMembersUpdateValues},
 				},
 				{ // goes to H because tags aren't logged (they have to be added manually)
-					Range:  fmt.Sprintf("%s!A%v:J%v", config.EventsSheetRanges.SheetName, emptyRowEvents, emptyRowEvents),
+					Range:  fmt.Sprintf("%s!A%v:J%v", app.Config.EventsSheetRanges.SheetName, emptyRowEvents, emptyRowEvents),
 					Values: [][]any{eventsUpdateValues},
 				},
 			},
 		},
-	).Do()
+	).Context(ctx).Do()
 	if err != nil {
 		return LogEventResponse{}, fmt.Errorf("Issue updating sheets while logging event: %w", err)
 	}
@@ -75,8 +76,8 @@ func LogEvent(documentId string) (LogEventResponse, error) {
 }
 
 // finds the columns of members in the EventsMembers sheet
-func createUpdateValues(memberAttendance *[]MemberAttendance, event Event) ([]any, LogEventResponse, error) {
-	namesResponse, err := config.GoogleServices.Sheets.Spreadsheets.Values.Get(config.SpreadsheetID, config.EventsMembersSheetRanges.Members).Do()
+func createUpdateValues(ctx context.Context, app *internal.App, memberAttendance *[]MemberAttendance, event Event) ([]any, LogEventResponse, error) {
+	namesResponse, err := app.GoogleServices.Sheets.Spreadsheets.Values.Get(app.Config.SpreadsheetID, app.Config.EventsMembersSheetRanges.Members).Context(ctx).Do()
 	if err != nil {
 		return nil, LogEventResponse{}, fmt.Errorf("Issue fetching member columns from sheet while logging event: %w", err)
 	}
@@ -174,8 +175,8 @@ func batchRequests(memberAttendance []MemberAttendance) []*docs.Request {
 
 // finds next empty row of sheet and makes sure the event isn't already logged
 // takes searchRange because it can be used for Events and EventsMembers sheet
-func findNextEmptyRowNoDupes(searchRange string, eventName string) (string, error) {
-	response, err := config.GoogleServices.Sheets.Spreadsheets.Values.Get(config.SpreadsheetID, searchRange).Do()
+func findNextEmptyRowNoDupes(ctx context.Context, app *internal.App, searchRange string, eventName string) (string, error) {
+	response, err := app.GoogleServices.Sheets.Spreadsheets.Values.Get(app.Config.SpreadsheetID, searchRange).Context(ctx).Do()
 	if err != nil {
 		return "", fmt.Errorf("Issue fetching events from sheet while logging event: %w", err)
 	}

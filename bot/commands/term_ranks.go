@@ -1,9 +1,10 @@
 package commands
 
 import (
+	"context"
 	"fmt"
-	"keyclubDiscordBot/config"
 	"keyclubDiscordBot/genericutils"
+	"keyclubDiscordBot/internal"
 	"keyclubDiscordBot/memberutils"
 	"strconv"
 	"strings"
@@ -22,7 +23,7 @@ var TermRanksCommand = &discordgo.ApplicationCommand{
 			Required:    true,
 		},
 		{
-			Type:        discordgo.ApplicationCommandOptionString,
+			Type:        discordgo.ApplicationCommandOptionInteger,
 			Name:        "topn",
 			Description: "Number of top volunteers to view ranks for",
 			Required:    false,
@@ -30,92 +31,94 @@ var TermRanksCommand = &discordgo.ApplicationCommand{
 	},
 }
 
-func TermRanksHandler(session *discordgo.Session, interaction *discordgo.InteractionCreate) {
-	gradYear := interaction.ApplicationCommandData().Options[0].StringValue()
-	topNInt := config.DefaultRankTopN                           // default to top 5 ranks
-	if len(interaction.ApplicationCommandData().Options) == 2 { // if topN was given
-		topNIntContender, err := strconv.Atoi(interaction.ApplicationCommandData().Options[1].StringValue())
-		if err == nil {
-			topNInt = topNIntContender
+func TermRanksHandler(app *internal.App) func(context.Context, *discordgo.Session, *discordgo.InteractionCreate) {
+	return func(ctx context.Context, session *discordgo.Session, interaction *discordgo.InteractionCreate) {
+		gradYear := interaction.ApplicationCommandData().Options[0].StringValue()
+		topNInt := app.Config.DefaultRankTopN                       // default to top 5 ranks
+		if len(interaction.ApplicationCommandData().Options) == 2 { // if topN was given
+			topNIntContender, err := strconv.Atoi(interaction.ApplicationCommandData().Options[1].StringValue())
+			if err == nil {
+				topNInt = topNIntContender
+			}
+		} else {
+			topNInt = app.Config.DefaultRankTopN
 		}
-	} else {
-		topNInt = config.DefaultRankTopN
-	}
 
-	gradYearInt, err := strconv.Atoi(gradYear)
-	if err != nil {
-		genericutils.SendErrorErrorEmbed(
-			"Error parsing graduation year",
-			fmt.Errorf("Issue parsing graduation year: %w", err),
-			genericutils.GetFormattedLastUpdated(config.HoursLastUpdated),
-			session,
-			interaction,
-		)
-		return
-	}
+		gradYearInt, err := strconv.Atoi(gradYear)
+		if err != nil {
+			genericutils.SendErrorErrorEmbed(
+				"Error parsing graduation year",
+				fmt.Errorf("Issue parsing graduation year: %w", err),
+				genericutils.GetFormattedLastUpdated(app.MemberSync.LastUpdated),
+				session,
+				interaction,
+			)
+			return
+		}
 
-	if topNInt == 0 || topNInt < -1 {
-		genericutils.SendStringErrorEmbed(
-			"Error fetching ranks",
-			"This command does not take most negative topN int values.",
-			genericutils.GetFormattedLastUpdated(config.HoursLastUpdated),
-			session,
-			interaction,
-		)
-		return
-	}
+		if topNInt == 0 || topNInt < -1 {
+			genericutils.SendStringErrorEmbed(
+				"Error fetching ranks",
+				"This command does not take most negative topN int values.",
+				genericutils.GetFormattedLastUpdated(app.MemberSync.LastUpdated),
+				session,
+				interaction,
+			)
+			return
+		}
 
-	members, err := memberutils.GetTermRanks(gradYearInt, topNInt, config.HoursUpdateTimeout, &config.HoursLastUpdated, config.GoogleServices.Sheets, config.DB)
-	if err != nil {
-		genericutils.SendErrorErrorEmbed(
-			"Error fetching ranks",
-			fmt.Errorf("Issue fetching ranks: %w", err),
-			genericutils.GetFormattedLastUpdated(config.HoursLastUpdated),
-			session,
-			interaction,
-		)
-		return
-	}
-	indexes := []string{}
-	names := []string{}
-	hours := []string{}
+		members, err := memberutils.GetTermRanks(ctx, app, gradYearInt, topNInt)
+		if err != nil {
+			genericutils.SendErrorErrorEmbed(
+				"Error fetching ranks",
+				fmt.Errorf("Issue fetching ranks: %w", err),
+				genericutils.GetFormattedLastUpdated(app.MemberSync.LastUpdated),
+				session,
+				interaction,
+			)
+			return
+		}
+		indexes := []string{}
+		names := []string{}
+		hours := []string{}
 
-	for index, member := range members {
-		formattedMember := member.Format()
-		indexes = append(indexes, fmt.Sprintf("%v.", index+1))
-		names = append(names, formattedMember.Name)
-		hours = append(hours, strconv.FormatFloat(member.TermHours, 'f', 2, 64))
-	}
+		for index, member := range members {
+			formattedMember := member.Format()
+			indexes = append(indexes, fmt.Sprintf("%v.", index+1))
+			names = append(names, formattedMember.Name)
+			hours = append(hours, strconv.FormatFloat(member.TermHours, 'f', 2, 64))
+		}
 
-	session.InteractionRespond(interaction.Interaction, &discordgo.InteractionResponse{
-		Type: discordgo.InteractionResponseChannelMessageWithSource,
-		Data: &discordgo.InteractionResponseData{
-			Embeds: []*discordgo.MessageEmbed{
-				{
-					Title: fmt.Sprintf("Top %v Ranks for Term Hours", topNInt),
-					Color: 0xc6eb34,
-					Fields: []*discordgo.MessageEmbedField{
-						{
-							Name:   "Rank",
-							Value:  strings.Join(indexes, "\n"),
-							Inline: true,
+		session.InteractionRespond(interaction.Interaction, &discordgo.InteractionResponse{
+			Type: discordgo.InteractionResponseChannelMessageWithSource,
+			Data: &discordgo.InteractionResponseData{
+				Embeds: []*discordgo.MessageEmbed{
+					{
+						Title: fmt.Sprintf("Top %v Ranks for Term Hours", topNInt),
+						Color: 0xc6eb34,
+						Fields: []*discordgo.MessageEmbedField{
+							{
+								Name:   "Rank",
+								Value:  strings.Join(indexes, "\n"),
+								Inline: true,
+							},
+							{
+								Name:   "Names",
+								Value:  strings.Join(names, "\n"),
+								Inline: true,
+							},
+							{
+								Name:   "Hours",
+								Value:  strings.Join(hours, "\n"),
+								Inline: true,
+							},
 						},
-						{
-							Name:   "Names",
-							Value:  strings.Join(names, "\n"),
-							Inline: true,
+						Footer: &discordgo.MessageEmbedFooter{
+							Text: genericutils.GetFormattedLastUpdated(app.MemberSync.LastUpdated),
 						},
-						{
-							Name:   "Hours",
-							Value:  strings.Join(hours, "\n"),
-							Inline: true,
-						},
-					},
-					Footer: &discordgo.MessageEmbedFooter{
-						Text: genericutils.GetFormattedLastUpdated(config.HoursLastUpdated),
 					},
 				},
 			},
-		},
-	})
+		})
+	}
 }

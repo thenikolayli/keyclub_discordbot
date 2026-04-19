@@ -1,6 +1,7 @@
 package eventutils
 
 import (
+	"context"
 	"fmt"
 	"math"
 	"regexp"
@@ -15,8 +16,8 @@ import (
 // gets the event info to put in the Events sheet (excluding tags, since that has to be done manually)
 // it's just the event info from the sign up sheet, so whatever is on there gets saved
 // doesn't save to db because updates to the db should only happen when fetching data from the sheets
-func GetEventInfo(documentId string, docsService *docs.Service) (Event, []MemberAttendance, error) {
-	tables, err := fetchTables(documentId, docsService)
+func GetEventInfo(ctx context.Context, documentId string, docsService *docs.Service) (Event, []MemberAttendance, error) {
+	tables, err := fetchTables(ctx, documentId, docsService)
 	if err != nil {
 		return Event{}, []MemberAttendance{}, fmt.Errorf("Error fetching tables: %w", err)
 	}
@@ -32,24 +33,26 @@ func GetEventInfo(documentId string, docsService *docs.Service) (Event, []Member
 	leaders := ""
 
 	for _, row := range infoTable.TableRows {
-		header := getCellText(row.TableCells[0])
+		header := strings.ToLower(getCellText(row.TableCells[0]))
 		value := getCellText(row.TableCells[1])
 		switch header {
-		case "Event Name:":
+		case "event name:":
 			name = value
-		case "Address:":
+		case "event:":
+			name = value
+		case "address:":
 			address = value
-		case "Leaders:":
+		case "leaders:":
 			leaders = value
-		case "Made By:":
+		case "made by:":
 			madeBy = value
-		case "Date:":
+		case "date:":
 			dateString = value
-		case "Time:":
+		case "time:":
 			timeString = value
 		}
 	}
-	date, startTime, endTime, err := parseDateAndTime(dateString, timeString)
+	date, nameDate, startTime, endTime, err := parseDateAndTime(dateString, timeString)
 	if err != nil {
 		return Event{}, []MemberAttendance{}, fmt.Errorf("error parsing event date/time: %w", err)
 	}
@@ -86,8 +89,8 @@ func GetEventInfo(documentId string, docsService *docs.Service) (Event, []Member
 		}
 	}
 
-	return Event{ // ISO 8096 format (yyyy-mm-dd) name
-		Name:          fmt.Sprintf("(%s) %s", date, name),
+	return Event{ // (m/d) name
+		Name:          fmt.Sprintf("%s %s", nameDate, name),
 		Date:          date,
 		StartTime:     startTime,
 		EndTime:       endTime,
@@ -97,6 +100,7 @@ func GetEventInfo(documentId string, docsService *docs.Service) (Event, []Member
 		TotalHours:    totalHours,
 		Leaders:       leaders,
 		MadeBy:        madeBy,
+		SignUpUrl:     fmt.Sprintf("https://docs.google.com/document/d/%s/edit?tab=t.0", documentId),
 	}, memberAttendance, nil
 }
 
@@ -147,8 +151,8 @@ func calculateHours(startTime string, endTime string) (float64, error) {
 }
 
 // returns all the tables of the document
-func fetchTables(documentId string, docsService *docs.Service) ([]docs.Table, error) {
-	document, err := docsService.Documents.Get(documentId).Do()
+func fetchTables(ctx context.Context, documentId string, docsService *docs.Service) ([]docs.Table, error) {
+	document, err := docsService.Documents.Get(documentId).Context(ctx).Do()
 	tables := []docs.Table{}
 	if err != nil {
 		return []docs.Table{}, fmt.Errorf("Issue fetching document: %w", err)
@@ -164,34 +168,35 @@ func fetchTables(documentId string, docsService *docs.Service) ([]docs.Table, er
 }
 
 // parses date and start and end time strings into time.Time objects
-func parseDateAndTime(dateString string, timeString string) (string, string, string, error) {
+func parseDateAndTime(dateString string, timeString string) (string, string, string, string, error) {
 	normalizedDateString := normalizeDateString(dateString)
 	date, err := dateparse.ParseAny(normalizedDateString)
 	if err != nil {
-		return "", "", "", fmt.Errorf("could not parse date %q (normalized: %q): %w", dateString, normalizedDateString, err)
+		return "", "", "", "", fmt.Errorf("could not parse date %q (normalized: %q): %w", dateString, normalizedDateString, err)
 	}
 	dateFormatted := date.Format(time.DateOnly)
+	nameDate := fmt.Sprintf("(%d/%d)", int(date.Month()), date.Day())
 
 	timeParts := strings.Split(timeString, "-")
 	if len(timeParts) != 2 {
 		timeParts = strings.Split(timeString, "to")
 	}
 	if len(timeParts) != 2 {
-		return "", "", "", fmt.Errorf("could not split time range %q", timeString)
+		return "", "", "", "", fmt.Errorf("could not split time range %q", timeString)
 	}
 	// adding a date so dateparse can parse the time, then just take the date away
 	startTime, err := dateparse.ParseAny(fmt.Sprintf("January 1, 2000 %v", timeParts[0]))
 	if err != nil {
-		return "", "", "", fmt.Errorf("could not parse start time %q: %w", strings.TrimSpace(timeParts[0]), err)
+		return "", "", "", "", fmt.Errorf("could not parse start time %q: %w", strings.TrimSpace(timeParts[0]), err)
 	}
 	startTimeFormatted := startTime.Format(time.TimeOnly)
 	endTime, err := dateparse.ParseAny(fmt.Sprintf("January 1, 2000 %v", timeParts[1]))
 	if err != nil {
-		return "", "", "", fmt.Errorf("could not parse end time %q: %w", strings.TrimSpace(timeParts[1]), err)
+		return "", "", "", "", fmt.Errorf("could not parse end time %q: %w", strings.TrimSpace(timeParts[1]), err)
 	}
 	endTimeFormatted := endTime.Format(time.TimeOnly)
 
-	return dateFormatted, startTimeFormatted, endTimeFormatted, nil
+	return dateFormatted, nameDate, startTimeFormatted, endTimeFormatted, nil
 }
 
 var (

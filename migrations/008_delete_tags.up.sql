@@ -9,7 +9,7 @@ CREATE TABLE IF NOT EXISTS new_events (
     n_of_volunteers FLOAT NOT NULL,
     total_hours FLOAT NOT NULL,
     leaders TEXT NOT NULL DEFAULT "",
-    made_by TEXT NOT NULL DEFAULT ""
+    made_by TEXT NOT NULL DEFAULT "",
     sign_up_url TEXT NOT NULL DEFAULT ""
 );
 
