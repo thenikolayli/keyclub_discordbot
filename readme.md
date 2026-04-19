@@ -4,7 +4,8 @@ This is t yeah i'll finish this later...
 
 ## The plan
 
-I want to also make it save the leaders per event, so I'll need to have it parse the leaders row in the info table and go off of that and add a new column in the 2026 Events sheet.
+Add sync events from calednar feature. It uses the same `get_event_info.go` under the hood, and the same database insertion logic (with the exception)
+of also adding the sign up url, so i'll just probably make a separate file for upserting events. Also, add `sync_state.go` for debounce and timers.
 
 ## _Member Functions_
 
