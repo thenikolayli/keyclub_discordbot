@@ -55,7 +55,7 @@ func SearchHandler(app *internal.App) func(context.Context, *discordgo.Session, 
 			description.WriteString(fmt.Sprintf("**%s**\n", event.Name))
 			description.WriteString(fmt.Sprintf("From %s to %s\n", event.StartTime, event.EndTime))
 			description.WriteString(fmt.Sprintf("At %s\n", event.Address))
-			description.WriteString(fmt.Sprintf("%v slots open\n", event.NofSlots))
+			description.WriteString(fmt.Sprintf("%v slots open\n", event.NofSlots-event.NofVolunteers))
 			description.WriteString(fmt.Sprintf("Sign up URL: %s\n\n", event.SignUpUrl))
 		}
 

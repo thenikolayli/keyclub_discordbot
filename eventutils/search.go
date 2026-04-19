@@ -16,8 +16,8 @@ func SearchEvents(ctx context.Context, app *internal.App, slots int) ([]Event, e
 SELECT *
 FROM events
 WHERE date >= ?
-  AND date <= ?
-  AND n_of_slots >= ?
+AND date <= ?
+AND (n_of_slots - n_of_volunteers) >= ?
 ORDER BY date ASC`
 
 	var events []Event
