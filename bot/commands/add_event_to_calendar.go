@@ -25,12 +25,18 @@ var AddEventToCalendarCommand = &discordgo.ApplicationCommand{
 
 func AddEventToCalendarHandler(app *internal.App) func(context.Context, *discordgo.Session, *discordgo.InteractionCreate) {
 	return func(ctx context.Context, session *discordgo.Session, interaction *discordgo.InteractionCreate) {
+		if err := session.InteractionRespond(interaction.Interaction, &discordgo.InteractionResponse{
+			Type: discordgo.InteractionResponseDeferredChannelMessageWithSource,
+		}); err != nil {
+			return
+		}
+
 		attendanceDocURL := interaction.ApplicationCommandData().Options[0].StringValue()
 		attendanceDocID := eventutils.DocsUrlToId(attendanceDocURL)
 
 		event, err := eventutils.AddEventToCalendar(ctx, app, attendanceDocID)
 		if err != nil {
-			genericutils.SendErrorErrorEmbed(
+			_ = genericutils.EditInteractionErrorEmbed(
 				"Error adding event to calendar",
 				err,
 				"Baaaaka!",
@@ -39,18 +45,13 @@ func AddEventToCalendarHandler(app *internal.App) func(context.Context, *discord
 			return
 		}
 
-		session.InteractionRespond(interaction.Interaction, &discordgo.InteractionResponse{
-			Type: discordgo.InteractionResponseChannelMessageWithSource,
-			Data: &discordgo.InteractionResponseData{
-				Embeds: []*discordgo.MessageEmbed{
-					{
-						Title:       fmt.Sprintf("%s added to calendar", event.Summary),
-						Color:       0xc6eb34,
-						Description: fmt.Sprintf("View the event at \n%v", event.HtmlLink),
-						Footer: &discordgo.MessageEmbedFooter{
-							Text: genericutils.GetFormattedLastUpdated(app.EventSync.LastUpdated),
-						},
-					},
+		_ = genericutils.EditInteractionEmbeds(session, interaction, []*discordgo.MessageEmbed{
+			{
+				Title:       fmt.Sprintf("%s added to calendar", event.Summary),
+				Color:       0xc6eb34,
+				Description: fmt.Sprintf("View the event at \n%v", event.HtmlLink),
+				Footer: &discordgo.MessageEmbedFooter{
+					Text: genericutils.GetFormattedLastUpdated(app.EventSync.LastUpdated),
 				},
 			},
 		})
