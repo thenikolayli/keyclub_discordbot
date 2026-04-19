@@ -26,43 +26,44 @@ var LogEventCommand = &discordgo.ApplicationCommand{
 
 func LogEventHandler(app *internal.App) func(context.Context, *discordgo.Session, *discordgo.InteractionCreate) {
 	return func(ctx context.Context, session *discordgo.Session, interaction *discordgo.InteractionCreate) {
+		if err := session.InteractionRespond(interaction.Interaction, &discordgo.InteractionResponse{
+			Type: discordgo.InteractionResponseDeferredChannelMessageWithSource,
+		}); err != nil {
+			return
+		}
+
 		attendanceDocURL := interaction.ApplicationCommandData().Options[0].StringValue()
 		attendanceDocID := eventutils.DocsUrlToId(attendanceDocURL)
 
 		logEventResponse, err := eventutils.LogEvent(ctx, app, attendanceDocID)
 		if err != nil {
-			genericutils.SendErrorErrorEmbed(
+			_ = genericutils.EditInteractionStringErrorEmbed(
 				"Error logging event",
-				err,
-				"Baaaaka!",
+				err.Error(),
+				genericutils.GetFormattedLastUpdated(app.EventSync.LastUpdated),
 				session, interaction,
 			)
 			return
 		}
 
-		session.InteractionRespond(interaction.Interaction, &discordgo.InteractionResponse{
-			Type: discordgo.InteractionResponseChannelMessageWithSource,
-			Data: &discordgo.InteractionResponseData{
-				Embeds: []*discordgo.MessageEmbed{
+		_ = genericutils.EditInteractionEmbeds(session, interaction, []*discordgo.MessageEmbed{
+			{
+				Title: fmt.Sprintf("%s logged", logEventResponse.Event.Name),
+				Color: 0xc6eb34,
+				Fields: []*discordgo.MessageEmbedField{
 					{
-						Title: fmt.Sprintf("%s logged", logEventResponse.Event.Name),
-						Color: 0xc6eb34,
-						Fields: []*discordgo.MessageEmbedField{
-							{
-								Name:   "Members Logged",
-								Value:  strings.Join(eventutils.FormatMemberAttendances(logEventResponse.MembersLogged), "\n"),
-								Inline: true,
-							},
-							{
-								Name:   "Members Not Logged",
-								Value:  strings.Join(eventutils.FormatMemberAttendances(logEventResponse.MembersNotLogged), "\n"),
-								Inline: true,
-							},
-						},
-						Footer: &discordgo.MessageEmbedFooter{
-							Text: genericutils.GetFormattedLastUpdated(app.EventSync.LastUpdated),
-						},
+						Name:   "Members Logged",
+						Value:  strings.Join(eventutils.FormatMemberAttendances(logEventResponse.MembersLogged), "\n"),
+						Inline: true,
 					},
+					{
+						Name:   "Members Not Logged",
+						Value:  strings.Join(eventutils.FormatMemberAttendances(logEventResponse.MembersNotLogged), "\n"),
+						Inline: true,
+					},
+				},
+				Footer: &discordgo.MessageEmbedFooter{
+					Text: genericutils.GetFormattedLastUpdated(app.EventSync.LastUpdated),
 				},
 			},
 		})

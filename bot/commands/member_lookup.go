@@ -29,7 +29,7 @@ func MemberLookupHandler(app *internal.App) func(context.Context, *discordgo.Ses
 		member, err := memberutils.GetMember(ctx, app, name)
 		// if member not found, respond with an error messasge
 		if err != nil {
-			genericutils.SendStringErrorEmbed(
+			_ = genericutils.EditInteractionStringErrorEmbed(
 				"Member not found",
 				fmt.Sprintf(`Could not find a member with the name "%v".`, name),
 				genericutils.GetFormattedLastUpdated(app.MemberSync.LastUpdated),
@@ -40,32 +40,26 @@ func MemberLookupHandler(app *internal.App) func(context.Context, *discordgo.Ses
 		}
 
 		formattedMember := member.Format()
-
-		session.InteractionRespond(interaction.Interaction, &discordgo.InteractionResponse{
-			Type: discordgo.InteractionResponseChannelMessageWithSource,
-			Data: &discordgo.InteractionResponseData{
-				Embeds: []*discordgo.MessageEmbed{
-					{
-						Title: fmt.Sprintf("%v's Member Info", formattedMember.Name),
-						Color: 0xc6eb34,
-						Description: fmt.Sprintf(`
-					All time hours: *%v*
-					Term hours: *%v*
-					%v, class of %v
-					Phone Number: *%v*
-					Personal Email: *%v*
-					School Email: *%v*
-					Shirt Size: *%v*
-					Paid Dues: *%v*
-					Strikes: *%v*
-					`, formattedMember.AllHours, formattedMember.TermHours, formattedMember.GradYear, formattedMember.Class, formattedMember.PhoneNumber, formattedMember.PersonalEmail, formattedMember.SchoolEmail, formattedMember.ShirtSize, formattedMember.PaidDues, formattedMember.Strikes),
-						Footer: &discordgo.MessageEmbedFooter{
-							Text: genericutils.GetFormattedLastUpdated(app.MemberSync.LastUpdated),
-						},
-					},
+		description := fmt.Sprintf(`
+All time hours: *%v*
+Term hours: *%v*
+%v, class of %v
+Phone Number: *%v*
+Personal Email: *%v*
+School Email: *%v*
+Shirt Size: *%v*
+Paid Dues: *%v*
+Strikes: *%v*
+		`, formattedMember.AllHours, formattedMember.TermHours, formattedMember.GradYear, formattedMember.Class, formattedMember.PhoneNumber, formattedMember.PersonalEmail, formattedMember.SchoolEmail, formattedMember.ShirtSize, formattedMember.PaidDues, formattedMember.Strikes)
+		_ = genericutils.EditInteractionEmbeds(session, interaction, []*discordgo.MessageEmbed{
+			{
+				Title:       fmt.Sprintf("%v's Member Info", formattedMember.Name),
+				Color:       0xc6eb34,
+				Description: description,
+				Footer: &discordgo.MessageEmbedFooter{
+					Text: genericutils.GetFormattedLastUpdated(app.MemberSync.LastUpdated),
 				},
 			},
 		})
-
 	}
 }

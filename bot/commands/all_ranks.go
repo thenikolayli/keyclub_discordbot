@@ -33,9 +33,15 @@ var AllRanksCommand = &discordgo.ApplicationCommand{
 
 func AllRanksHandler(app *internal.App) func(context.Context, *discordgo.Session, *discordgo.InteractionCreate) {
 	return func(ctx context.Context, session *discordgo.Session, interaction *discordgo.InteractionCreate) {
+		if err := session.InteractionRespond(interaction.Interaction, &discordgo.InteractionResponse{
+			Type: discordgo.InteractionResponseDeferredChannelMessageWithSource,
+		}); err != nil {
+			return
+		}
+
 		gradYear := interaction.ApplicationCommandData().Options[0].StringValue()
-		topNInt := app.Config.DefaultRankTopN                       // default to top 5 ranks
-		if len(interaction.ApplicationCommandData().Options) == 2 { // if topN was given
+		topNInt := app.Config.DefaultRankTopN
+		if len(interaction.ApplicationCommandData().Options) == 2 {
 			topNIntContender, err := strconv.Atoi(interaction.ApplicationCommandData().Options[1].StringValue())
 			if err == nil {
 				topNInt = topNIntContender
@@ -45,7 +51,7 @@ func AllRanksHandler(app *internal.App) func(context.Context, *discordgo.Session
 		}
 		gradYearInt, err := strconv.Atoi(gradYear)
 		if err != nil {
-			genericutils.SendErrorErrorEmbed(
+			_ = genericutils.EditInteractionErrorEmbed(
 				"Error parsing graduation year",
 				fmt.Errorf("Issue parsing graduation year: %w", err),
 				genericutils.GetFormattedLastUpdated(app.MemberSync.LastUpdated),
@@ -56,7 +62,7 @@ func AllRanksHandler(app *internal.App) func(context.Context, *discordgo.Session
 		}
 
 		if topNInt == 0 || topNInt < -1 {
-			genericutils.SendStringErrorEmbed(
+			_ = genericutils.EditInteractionStringErrorEmbed(
 				"Error fetching ranks",
 				"This command does not take most negative topN int values.",
 				fmt.Sprintf("Last updated: %v", app.MemberSync.LastUpdated.Format("Jan 2 2006 15:04:05")),
@@ -68,7 +74,7 @@ func AllRanksHandler(app *internal.App) func(context.Context, *discordgo.Session
 
 		members, err := memberutils.GetAllRanks(ctx, app, gradYearInt, topNInt)
 		if err != nil {
-			genericutils.SendErrorErrorEmbed(
+			_ = genericutils.EditInteractionErrorEmbed(
 				"Error fetching ranks",
 				fmt.Errorf("Issue fetching ranks: %w", err),
 				fmt.Sprintf("Last updated: %v", app.MemberSync.LastUpdated.Format("Jan 2 2006 15:04:05")),
@@ -88,34 +94,29 @@ func AllRanksHandler(app *internal.App) func(context.Context, *discordgo.Session
 			hours = append(hours, strconv.FormatFloat(member.AllHours, 'f', 2, 64))
 		}
 
-		session.InteractionRespond(interaction.Interaction, &discordgo.InteractionResponse{
-			Type: discordgo.InteractionResponseChannelMessageWithSource,
-			Data: &discordgo.InteractionResponseData{
-				Embeds: []*discordgo.MessageEmbed{
+		_ = genericutils.EditInteractionEmbeds(session, interaction, []*discordgo.MessageEmbed{
+			{
+				Title: fmt.Sprintf("Top %v Ranks for All Hours", topNInt),
+				Color: 0xc6eb34,
+				Fields: []*discordgo.MessageEmbedField{
 					{
-						Title: fmt.Sprintf("Top %v Ranks for All Hours", topNInt),
-						Color: 0xc6eb34,
-						Fields: []*discordgo.MessageEmbedField{
-							{
-								Name:   "Rank",
-								Value:  strings.Join(indexes, "\n"),
-								Inline: true,
-							},
-							{
-								Name:   "Names",
-								Value:  strings.Join(names, "\n"),
-								Inline: true,
-							},
-							{
-								Name:   "Hours",
-								Value:  strings.Join(hours, "\n"),
-								Inline: true,
-							},
-						},
-						Footer: &discordgo.MessageEmbedFooter{
-							Text: genericutils.GetFormattedLastUpdated(app.MemberSync.LastUpdated),
-						},
+						Name:   "Rank",
+						Value:  strings.Join(indexes, "\n"),
+						Inline: true,
 					},
+					{
+						Name:   "Names",
+						Value:  strings.Join(names, "\n"),
+						Inline: true,
+					},
+					{
+						Name:   "Hours",
+						Value:  strings.Join(hours, "\n"),
+						Inline: true,
+					},
+				},
+				Footer: &discordgo.MessageEmbedFooter{
+					Text: genericutils.GetFormattedLastUpdated(app.MemberSync.LastUpdated),
 				},
 			},
 		})

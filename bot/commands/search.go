@@ -2,6 +2,7 @@ package commands
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"keyclubDiscordBot/eventutils"
 	"keyclubDiscordBot/genericutils"
@@ -26,13 +27,28 @@ var SearchCommand = &discordgo.ApplicationCommand{
 
 func SearchHandler(app *internal.App) func(context.Context, *discordgo.Session, *discordgo.InteractionCreate) {
 	return func(ctx context.Context, session *discordgo.Session, interaction *discordgo.InteractionCreate) {
-		slots := 0
+		if err := session.InteractionRespond(interaction.Interaction, &discordgo.InteractionResponse{
+			Type: discordgo.InteractionResponseDeferredChannelMessageWithSource,
+		}); err != nil {
+			return
+		}
+
+		slots := 1
 		if len(interaction.ApplicationCommandData().Options) > 0 {
 			slots = int(interaction.ApplicationCommandData().Options[0].IntValue())
 		}
 		events, err := eventutils.SearchEvents(ctx, app, slots)
 		if err != nil {
-			genericutils.SendErrorErrorEmbed(
+			if errors.Is(err, context.DeadlineExceeded) {
+				_ = genericutils.EditInteractionStringErrorEmbed(
+					"Search timed out",
+					"Syncing or searching events took too long. Try again in a moment.",
+					genericutils.GetFormattedLastUpdated(app.EventSync.LastUpdated),
+					session, interaction,
+				)
+				return
+			}
+			_ = genericutils.EditInteractionErrorEmbed(
 				"Error searching events",
 				err,
 				"Baaaaka!",
@@ -41,7 +57,7 @@ func SearchHandler(app *internal.App) func(context.Context, *discordgo.Session, 
 			return
 		}
 		if len(events) == 0 {
-			genericutils.SendStringErrorEmbed(
+			_ = genericutils.EditInteractionStringErrorEmbed(
 				"No events found",
 				fmt.Sprintf("No events found with >= %v slots open", slots),
 				genericutils.GetFormattedLastUpdated(app.EventSync.LastUpdated),
@@ -59,18 +75,13 @@ func SearchHandler(app *internal.App) func(context.Context, *discordgo.Session, 
 			description.WriteString(fmt.Sprintf("Sign up URL: %s\n\n", event.SignUpUrl))
 		}
 
-		session.InteractionRespond(interaction.Interaction, &discordgo.InteractionResponse{
-			Type: discordgo.InteractionResponseChannelMessageWithSource,
-			Data: &discordgo.InteractionResponseData{
-				Embeds: []*discordgo.MessageEmbed{
-					{
-						Title:       fmt.Sprintf("%v Events Found", len(events)),
-						Color:       0xc6eb34,
-						Description: description.String(),
-						Footer: &discordgo.MessageEmbedFooter{
-							Text: genericutils.GetFormattedLastUpdated(app.EventSync.LastUpdated),
-						},
-					},
+		_ = genericutils.EditInteractionEmbeds(session, interaction, []*discordgo.MessageEmbed{
+			{
+				Title:       fmt.Sprintf("%v Events Found", len(events)),
+				Color:       0xc6eb34,
+				Description: description.String(),
+				Footer: &discordgo.MessageEmbedFooter{
+					Text: genericutils.GetFormattedLastUpdated(app.EventSync.LastUpdated),
 				},
 			},
 		})
