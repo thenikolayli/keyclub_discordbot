@@ -25,6 +25,12 @@ var MemberLookupCommand = &discordgo.ApplicationCommand{
 
 func MemberLookupHandler(app *internal.App) func(context.Context, *discordgo.Session, *discordgo.InteractionCreate) {
 	return func(ctx context.Context, session *discordgo.Session, interaction *discordgo.InteractionCreate) {
+		if err := session.InteractionRespond(interaction.Interaction, &discordgo.InteractionResponse{
+			Type: discordgo.InteractionResponseDeferredChannelMessageWithSource,
+		}); err != nil {
+			return
+		}
+
 		name := interaction.ApplicationCommandData().Options[0].StringValue()
 		member, err := memberutils.GetMember(ctx, app, name)
 		// if member not found, respond with an error messasge

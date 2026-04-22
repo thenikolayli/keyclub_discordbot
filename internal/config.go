@@ -20,6 +20,7 @@ type Config struct {
 	GuildID           string
 	OfficerRoleID     string
 	LeaderRoleID      string
+	LeaderChannelID   string
 	DefaultRankTopN   int
 
 	MemberSyncTimeout time.Duration
@@ -46,6 +47,7 @@ func LoadConfig() (Config, error) {
 		GuildID:           os.Getenv("GUILD_ID"),
 		OfficerRoleID:     os.Getenv("OFFICER_ROLE_ID"),
 		LeaderRoleID:      os.Getenv("LEADER_ROLE_ID"),
+		LeaderChannelID:   os.Getenv("LEADER_CHANNEL_ID"),
 		DefaultRankTopN:   5,
 
 		MemberSyncTimeout:     time.Minute * 60,

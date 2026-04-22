@@ -27,11 +27,11 @@ var Commands = []*discordgo.ApplicationCommand{
 func BuildCommandHandlers(app *internal.App) map[string]CommandHandler {
 	return map[string]CommandHandler{
 		"hours":              commands.HoursHandler(app),
-		"member":             requireRole(func() []string { return []string{app.Config.OfficerRoleID, app.Config.LeaderRoleID} }, commands.MemberLookupHandler(app)),
+		"member":             requireRole(func() []string { return []string{app.Config.OfficerRoleID, app.Config.LeaderRoleID} }, func() string { return app.Config.LeaderChannelID }, commands.MemberLookupHandler(app)),
 		"allranks":           commands.AllRanksHandler(app),
 		"termranks":          commands.TermRanksHandler(app),
-		"logevent":           requireRole(func() []string { return []string{app.Config.OfficerRoleID} }, commands.LogEventHandler(app)),
-		"addeventtocalendar": requireRole(func() []string { return []string{app.Config.OfficerRoleID, app.Config.LeaderRoleID} }, commands.AddEventToCalendarHandler(app)),
+		"logevent":           requireRole(func() []string { return []string{app.Config.OfficerRoleID} }, func() string { return app.Config.LeaderChannelID }, commands.LogEventHandler(app)),
+		"addeventtocalendar": requireRole(func() []string { return []string{app.Config.OfficerRoleID, app.Config.LeaderRoleID} }, func() string { return app.Config.LeaderChannelID }, commands.AddEventToCalendarHandler(app)),
 		"refresh":            commands.RefreshHandler(app),
 		"search":             commands.SearchHandler(app),
 	}
@@ -50,9 +50,10 @@ func hasRole(member *discordgo.Member, requiredRoles []string) bool {
 
 // requires a user to have a certain role otherwise it will respond with an error message and not execute the command
 // wrapper function that returns a command handler if the user has the required role, otherwise responds with an error message
-func requireRole(getRequiredRoles func() []string, next CommandHandler) CommandHandler {
+func requireRole(getRequiredRoles func() []string, getAllowedChannelId func() string, next CommandHandler) CommandHandler {
 	return func(ctx context.Context, session *discordgo.Session, interaction *discordgo.InteractionCreate) {
 		requiredRoles := getRequiredRoles()
+		allowedChannelId := getAllowedChannelId()
 		if interaction.Member == nil || !hasRole(interaction.Member, requiredRoles) {
 			session.InteractionRespond(interaction.Interaction, &discordgo.InteractionResponse{
 				Type: discordgo.InteractionResponseChannelMessageWithSource,
@@ -61,6 +62,24 @@ func requireRole(getRequiredRoles func() []string, next CommandHandler) CommandH
 						{
 							Title:       "Unauthorized",
 							Description: "You are not authorized to use this command.",
+							Color:       0xd1244c,
+							Footer: &discordgo.MessageEmbedFooter{
+								Text: "xx ;)",
+							},
+						},
+					},
+				},
+			})
+			return
+		}
+		if interaction.ChannelID != allowedChannelId {
+			session.InteractionRespond(interaction.Interaction, &discordgo.InteractionResponse{
+				Type: discordgo.InteractionResponseChannelMessageWithSource,
+				Data: &discordgo.InteractionResponseData{
+					Embeds: []*discordgo.MessageEmbed{
+						{
+							Title:       "Unauthorized",
+							Description: "This command is locked to the leader channel.",
 							Color:       0xd1244c,
 							Footer: &discordgo.MessageEmbedFooter{
 								Text: "xx ;)",
