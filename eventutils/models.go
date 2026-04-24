@@ -16,6 +16,7 @@ type Event struct {
 	Leaders       string  `db:"leaders"`
 	MadeBy        string  `db:"made_by"`
 	SignUpUrl     string  `db:"sign_up_url"`
+	Description   string  `db:"description"`
 }
 
 // struct to represent the intermediary table for many-to-many relationship between events and members

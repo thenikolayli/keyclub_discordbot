@@ -17,13 +17,11 @@ func AddEventToCalendar(ctx context.Context, app *internal.App, documentId strin
 		return calendar.Event{}, fmt.Errorf("Issue extracting event info while adding event to calendar: %w", err)
 	}
 	noDate := regexp.MustCompile(`\(.*?\)`)
-	fmt.Printf("%sT%s-07:00\n", event.Date, event.StartTime)
-	fmt.Printf("%sT%s-07:00\n", event.Date, event.EndTime)
 
 	calendarEvent := &calendar.Event{
 		Summary:     noDate.ReplaceAllString(event.Name, ""),
 		Location:    event.Address,
-		Description: "Open the attendance document to view the description.",
+		Description: event.Description,
 		Start: &calendar.EventDateTime{
 			DateTime: fmt.Sprintf("%sT%s-07:00", event.Date, event.StartTime),
 			TimeZone: "America/Los_Angeles",
