@@ -22,7 +22,7 @@ func GetAllRanks(ctx context.Context, app *internal.App, gradYear int, topN int)
 
 	// removes officers
 	topNRanks := []Member{}
-	if topN != -1 {
+	if topN != -1 && topN <= len(ranks) {
 		currentIndex := 0
 		for len(topNRanks) < topN {
 			if !slices.Contains(app.Config.Officers, fmt.Sprintf("%s %s", ranks[currentIndex].Firstname, ranks[currentIndex].Lastname)) {
@@ -55,7 +55,7 @@ func GetTermRanks(ctx context.Context, app *internal.App, gradYear int, topN int
 	}
 	// removes officers
 	topNRanks := []Member{}
-	if topN != -1 {
+	if topN != -1 && topN <= len(ranks) {
 		currentIndex := 0
 		for len(topNRanks) < topN {
 			if !slices.Contains(app.Config.Officers, fmt.Sprintf("%s %s", ranks[currentIndex].Firstname, ranks[currentIndex].Lastname)) {

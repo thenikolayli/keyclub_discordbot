@@ -58,7 +58,7 @@ func LogEvent(ctx context.Context, app *internal.App, documentId string) (LogEve
 			ValueInputOption: "USER_ENTERED",
 			Data: []*sheets.ValueRange{
 				{
-					Range:  fmt.Sprintf("%s!A%v:%s%v", app.Config.EventsMembersSheetRanges.SheetName, emptyRowEventsMembers, indexToCol(len(eventsMembersUpdateValues)), emptyRowEventsMembers),
+					Range:  fmt.Sprintf("%s!A%v:%s%v", app.Config.EventsMembersSheetRanges.SheetName, emptyRowEventsMembers, indexToCol(len(eventsMembersUpdateValues)-1), emptyRowEventsMembers),
 					Values: [][]any{eventsMembersUpdateValues},
 				},
 				{ // goes to H because tags aren't logged (they have to be added manually)
@@ -112,8 +112,12 @@ func createUpdateValues(ctx context.Context, app *internal.App, memberAttendance
 			membersNotLogged = append(membersNotLogged, member)
 		}
 	}
-	updateValues[0] = event.Name
-	return updateValues, LogEventResponse{
+
+	// Member headers start at column B (config uses B1:ZZ1). Prepend event name for column A.
+	updateValuesWithEventName := make([]any, 0, len(updateValues)+1)
+	updateValuesWithEventName = append(updateValuesWithEventName, event.Name)
+	updateValuesWithEventName = append(updateValuesWithEventName, updateValues...)
+	return updateValuesWithEventName, LogEventResponse{
 		Event:            event,
 		MembersLogged:    membersLogged,
 		MembersNotLogged: membersNotLogged,
