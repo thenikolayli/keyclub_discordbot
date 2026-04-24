@@ -117,6 +117,7 @@ func syncEventsFromSheet(ctx context.Context, app *internal.App) error {
 }
 
 // fetches and returns google sheets api value ranges (unformatted)
+// description and sign up url aren't stored in the sheet and aren't synced from or written to it
 func getEventValueRanges(ctx context.Context, app *internal.App) ([]*sheets.ValueRange, error) {
 	r := app.Config.EventsSheetRanges
 	data, err := app.GoogleServices.Sheets.Spreadsheets.Values.BatchGet(app.Config.SpreadsheetID).Ranges(
@@ -167,6 +168,7 @@ func getEventStructs(eventValueRanges []*sheets.ValueRange) []Event {
 			Leaders:       normalizedLeaders[i],
 			MadeBy:        normalizedMadeBy[i],
 			SignUpUrl:     "", // sheet doesn't have this column
+			Description:   "", // sheet doesn't have this column
 			ID:            -1,
 		}
 	}
@@ -188,9 +190,9 @@ func upsertEvent(ctx context.Context, event Event, transaction *sqlx.Tx) error {
 	if err == sql.ErrNoRows {
 		_, insertErr := transaction.NamedExec(`
 			INSERT INTO events
-			(name, date, start_time, end_time, address, n_of_slots, n_of_volunteers, total_hours, leaders, made_by, sign_up_url)
+			(name, date, start_time, end_time, address, n_of_slots, n_of_volunteers, total_hours, leaders, made_by, sign_up_url, description)
 			VALUES
-			(:name, :date, :start_time, :end_time, :address, :n_of_slots, :n_of_volunteers, :total_hours, :leaders, :made_by, :sign_up_url)`,
+			(:name, :date, :start_time, :end_time, :address, :n_of_slots, :n_of_volunteers, :total_hours, :leaders, :made_by, :sign_up_url, :description)`,
 			event,
 		)
 		if insertErr != nil {
@@ -202,7 +204,7 @@ func upsertEvent(ctx context.Context, event Event, transaction *sqlx.Tx) error {
 		event.ID = result.ID // to update the correct row based on primary key (id)
 		_, updateErr := transaction.NamedExec(`
 			UPDATE events SET 
-			name=:name, date=:date, start_time=:start_time, end_time=:end_time, address=:address, n_of_slots=:n_of_slots, n_of_volunteers=:n_of_volunteers, total_hours=:total_hours, leaders=:leaders, made_by=:made_by, sign_up_url=:sign_up_url
+			name=:name, date=:date, start_time=:start_time, end_time=:end_time, address=:address, n_of_slots=:n_of_slots, n_of_volunteers=:n_of_volunteers, total_hours=:total_hours, leaders=:leaders, made_by=:made_by, sign_up_url=:sign_up_url, description=:description
 			WHERE id=:id
 		`, event)
 		if updateErr != nil {

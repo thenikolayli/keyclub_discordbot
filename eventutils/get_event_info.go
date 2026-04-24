@@ -17,7 +17,17 @@ import (
 // it's just the event info from the sign up sheet, so whatever is on there gets saved
 // doesn't save to db because updates to the db should only happen when fetching data from the sheets
 func GetEventInfo(ctx context.Context, documentId string, docsService *docs.Service) (Event, []MemberAttendance, error) {
-	tables, err := fetchTables(ctx, documentId, docsService)
+	document, err := docsService.Documents.Get(documentId).Context(ctx).Do()
+	if err != nil {
+		return Event{}, []MemberAttendance{}, fmt.Errorf("issue fetching document: %w", err)
+	}
+
+	description := "Check attendance doc for description."
+	if extracted, err := fetchDescriptionAfterFirstTable(document); err == nil && strings.TrimSpace(extracted) != "" {
+		description = extracted
+	}
+
+	tables, err := fetchTables(document)
 	if err != nil {
 		return Event{}, []MemberAttendance{}, fmt.Errorf("Error fetching tables: %w", err)
 	}
@@ -101,6 +111,7 @@ func GetEventInfo(ctx context.Context, documentId string, docsService *docs.Serv
 		Leaders:       leaders,
 		MadeBy:        madeBy,
 		SignUpUrl:     fmt.Sprintf("https://docs.google.com/document/d/%s/edit?tab=t.0", documentId),
+		Description:   description,
 	}, memberAttendance, nil
 }
 
@@ -151,13 +162,12 @@ func calculateHours(startTime string, endTime string) (float64, error) {
 }
 
 // returns all the tables of the document
-func fetchTables(ctx context.Context, documentId string, docsService *docs.Service) ([]docs.Table, error) {
-	document, err := docsService.Documents.Get(documentId).Context(ctx).Do()
-	tables := []docs.Table{}
-	if err != nil {
-		return []docs.Table{}, fmt.Errorf("Issue fetching document: %w", err)
+func fetchTables(document *docs.Document) ([]docs.Table, error) {
+	if document == nil || document.Body == nil {
+		return []docs.Table{}, fmt.Errorf("document body is nil")
 	}
 
+	tables := []docs.Table{}
 	for _, structuralElement := range document.Body.Content {
 		if structuralElement.Table != nil {
 			tables = append(tables, *structuralElement.Table)
@@ -165,6 +175,41 @@ func fetchTables(ctx context.Context, documentId string, docsService *docs.Servi
 	}
 
 	return tables, nil
+}
+
+// fetches the first paragraph after the first table, stopping at the first newline
+// this is where the event description lives in our signup docs
+func fetchDescriptionAfterFirstTable(document *docs.Document) (string, error) {
+	if document == nil || document.Body == nil {
+		return "", fmt.Errorf("document body is nil")
+	}
+
+	foundFirstTable := false
+	for _, structuralElement := range document.Body.Content {
+		if structuralElement.Table != nil {
+			if !foundFirstTable {
+				foundFirstTable = true
+			}
+			continue
+		}
+
+		if !foundFirstTable || structuralElement.Paragraph == nil {
+			continue
+		}
+
+		text := getParagraphText(structuralElement.Paragraph)
+		text = strings.TrimSpace(text)
+		if text == "" {
+			continue
+		}
+
+		if i := strings.Index(text, "\n"); i >= 0 {
+			text = text[:i]
+		}
+		return strings.TrimSpace(text), nil
+	}
+
+	return "", nil
 }
 
 // parses date and start and end time strings into time.Time objects
@@ -227,4 +272,14 @@ func getCellText(tableCell *docs.TableCell) string {
 		}
 	}
 	return strings.TrimSpace(stringBuilder.String())
+}
+
+func getParagraphText(paragraph *docs.Paragraph) string {
+	var stringBuilder strings.Builder
+	for _, elem := range paragraph.Elements {
+		if elem.TextRun != nil {
+			stringBuilder.WriteString(elem.TextRun.Content)
+		}
+	}
+	return stringBuilder.String()
 }
