@@ -17,7 +17,7 @@ var AllRanksCommand = &discordgo.ApplicationCommand{
 	Description: "Check a volunteer's ranks",
 	Options: []*discordgo.ApplicationCommandOption{
 		{
-			Type:        discordgo.ApplicationCommandOptionString,
+			Type:        discordgo.ApplicationCommandOptionInteger,
 			Name:        "gradyear",
 			Description: "Graduation year of the group to view ranks for",
 			Required:    true,
@@ -39,40 +39,24 @@ func AllRanksHandler(app *internal.App) func(context.Context, *discordgo.Session
 			return
 		}
 
-		gradYear := interaction.ApplicationCommandData().Options[0].StringValue()
-		topNInt := app.Config.DefaultRankTopN
-		if len(interaction.ApplicationCommandData().Options) == 2 {
-			topNIntContender, err := strconv.Atoi(interaction.ApplicationCommandData().Options[1].StringValue())
-			if err == nil {
-				topNInt = topNIntContender
+		gradYear := int(interaction.ApplicationCommandData().Options[0].IntValue())
+		topN := app.Config.DefaultRankTopN                          // default to top 5 ranks
+		if len(interaction.ApplicationCommandData().Options) == 2 { // if topN was given
+			topNGiven := int(interaction.ApplicationCommandData().Options[1].IntValue())
+			if topNGiven == 0 || topNGiven < -1 {
+				_ = genericutils.EditInteractionStringErrorEmbed(
+					"Error fetching ranks",
+					"This command does not take most negative topN int values.",
+					genericutils.GetFormattedLastUpdated(app.MemberSync.LastUpdated),
+					session,
+					interaction,
+				)
+				return
 			}
-		} else {
-			topNInt = app.Config.DefaultRankTopN
-		}
-		gradYearInt, err := strconv.Atoi(gradYear)
-		if err != nil {
-			_ = genericutils.EditInteractionErrorEmbed(
-				"Error parsing graduation year",
-				fmt.Errorf("Issue parsing graduation year: %w", err),
-				genericutils.GetFormattedLastUpdated(app.MemberSync.LastUpdated),
-				session,
-				interaction,
-			)
-			return
+			topN = topNGiven
 		}
 
-		if topNInt == 0 || topNInt < -1 {
-			_ = genericutils.EditInteractionStringErrorEmbed(
-				"Error fetching ranks",
-				"This command does not take most negative topN int values.",
-				fmt.Sprintf("Last updated: %v", app.MemberSync.LastUpdated.Format("Jan 2 2006 15:04:05")),
-				session,
-				interaction,
-			)
-			return
-		}
-
-		members, err := memberutils.GetAllRanks(ctx, app, gradYearInt, topNInt)
+		members, err := memberutils.GetAllRanks(ctx, app, gradYear, topN)
 		if err != nil {
 			_ = genericutils.EditInteractionErrorEmbed(
 				"Error fetching ranks",
@@ -96,7 +80,7 @@ func AllRanksHandler(app *internal.App) func(context.Context, *discordgo.Session
 
 		_ = genericutils.EditInteractionEmbeds(session, interaction, []*discordgo.MessageEmbed{
 			{
-				Title: fmt.Sprintf("Top %v Ranks for All Hours", topNInt),
+				Title: fmt.Sprintf("Top %v Ranks for All Hours", topN),
 				Color: 0xc6eb34,
 				Fields: []*discordgo.MessageEmbedField{
 					{

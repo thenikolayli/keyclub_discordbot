@@ -1,4 +1,4 @@
-# Key Club Discord Bot v2.1.1
+# Key Club Discord Bot v2.1.2
 
 This is t yeah i'll finish this later...
 
